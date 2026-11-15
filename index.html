@@ -1,0 +1,2295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0b0b0f" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="description" content="Browse publicly available social profiles privately.">
+<title>GhostView</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23111'/%3E%3Cpath d='M32 12c-9.4 0-16 6.9-16 16v22l5-4 5 4 6-4 6 4 5-4 5 4V28c0-9.1-6.6-16-16-16z' fill='%23fff'/%3E%3Ccircle cx='26' cy='29' r='3' fill='%23111'/%3E%3Ccircle cx='38' cy='29' r='3' fill='%23111'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0b0b0f; --bg2:#141419; --card:rgba(28,28,34,.72); --card-solid:#1c1c22;
+  --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14);
+  --text:#f5f5f7; --text2:#a1a1aa; --text3:#6b6b75;
+  --accent:#0a84ff; --ig1:#f58529; --ig2:#dd2a7b; --ig3:#8134af; --tt1:#25f4ee; --tt2:#fe2c55;
+  --ok:#30d158; --warn:#ffd60a; --bad:#ff453a;
+  --r-lg:22px; --r-md:16px; --r-sm:12px;
+  --shadow:0 20px 60px -20px rgba(0,0,0,.6);
+  --ease:cubic-bezier(.2,.8,.2,1);
+  color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#f5f5f7; --bg2:#ffffff; --card:rgba(255,255,255,.75); --card-solid:#fff;
+  --line:rgba(0,0,0,.07); --line2:rgba(0,0,0,.12);
+  --text:#1d1d1f; --text2:#6e6e73; --text3:#a1a1a6;
+  --shadow:0 20px 50px -24px rgba(0,0,0,.25);
+  color-scheme:light;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--bg); color:var(--text); min-height:100vh; min-height:100dvh;
+  -webkit-font-smoothing:antialiased; letter-spacing:-.011em; line-height:1.45;
+  transition:background .4s var(--ease),color .4s var(--ease);
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+body::before{ /* ambient glow */
+  content:"";position:fixed;inset:-20% -10% auto -10%;height:70vh;z-index:-1;pointer-events:none;
+  background:radial-gradient(40% 50% at 30% 30%,rgba(10,132,255,.16),transparent 70%),
+             radial-gradient(35% 45% at 75% 20%,rgba(221,42,123,.12),transparent 70%);
+  filter:blur(20px);
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ---------- top bar ---------- */
+.bar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;
+  padding:12px 20px;backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+  background:color-mix(in srgb,var(--bg) 70%,transparent);border-bottom:1px solid transparent;transition:border-color .3s}
+.bar.scrolled{border-bottom-color:var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:17px;letter-spacing:-.02em}
+.logo{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+  background:linear-gradient(145deg,#2c2c34,#111);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 4px 14px -4px rgba(0,0,0,.6)}
+:root[data-theme="light"] .logo{background:linear-gradient(145deg,#1d1d1f,#3a3a40)}
+.bar .spacer{flex:1}
+.icon-btn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:var(--text2);transition:background .2s,color .2s,transform .2s var(--ease)}
+.icon-btn:hover{background:var(--line);color:var(--text)}
+.icon-btn:active{transform:scale(.92)}
+.bar-search{display:none;flex:1;min-width:0;max-width:460px}
+.compact-field input{width:100%}
+html,body{overflow-x:hidden}
+.bar.compact .bar-search{display:block}
+.bar.compact .spacer{display:none}
+
+/* ---------- layout ---------- */
+main{max-width:980px;margin:0 auto;padding:0 20px 80px}
+.view{animation:rise .55s var(--ease) both}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* ---------- home ---------- */
+.hero{text-align:center;padding:9vh 0 28px}
+.hero .ghost{width:76px;height:76px;margin:0 auto 22px;border-radius:24px;display:grid;place-items:center;
+  background:linear-gradient(145deg,#2c2c34,#0e0e12);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 24px 50px -16px rgba(0,0,0,.7);
+  animation:float 6s ease-in-out infinite}
+:root[data-theme="light"] .hero .ghost{background:linear-gradient(145deg,#1d1d1f,#3a3a40)}
+@keyframes float{50%{transform:translateY(-6px)}}
+.hero h1{font-size:clamp(38px,7vw,58px);font-weight:700;letter-spacing:-.035em;line-height:1.05}
+.hero p{color:var(--text2);font-size:clamp(16px,2.4vw,19px);margin-top:12px}
+
+.seg{display:inline-flex;padding:4px;border-radius:999px;background:var(--line);margin:28px auto 16px;position:relative}
+.seg button{position:relative;z-index:1;display:flex;align-items:center;gap:8px;padding:9px 18px;border-radius:999px;font-size:14px;font-weight:550;color:var(--text2);transition:color .25s}
+.seg button[aria-pressed="true"]{color:var(--text)}
+.seg .pill{position:absolute;top:4px;bottom:4px;border-radius:999px;background:color-mix(in srgb,var(--text) 14%,var(--card-solid));box-shadow:0 2px 10px -2px rgba(0,0,0,.35);transition:left .35s var(--ease),width .35s var(--ease)}
+
+.search{position:relative;max-width:640px;margin:0 auto}
+.field{display:flex;align-items:center;gap:10px;height:62px;padding:0 10px 0 20px;border-radius:var(--r-lg);
+  background:var(--card);border:1px solid var(--line2);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  box-shadow:var(--shadow);transition:border-color .25s,box-shadow .25s}
+.field:focus-within{border-color:color-mix(in srgb,var(--accent) 60%,transparent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 18%,transparent),var(--shadow)}
+.field input{flex:1;min-width:0;height:100%;background:none;border:0;outline:0;font-size:17px}
+.field input::placeholder{color:var(--text3)}
+.field .lead{color:var(--text3);flex:none}
+.go{height:44px;padding:0 18px;border-radius:14px;background:var(--text);color:var(--bg);font-weight:600;font-size:15px;display:flex;align-items:center;gap:6px;transition:transform .2s var(--ease),opacity .2s}
+.go:active{transform:scale(.95)}
+.go:disabled{opacity:.35;cursor:default}
+.clear-x{width:28px;height:28px;border-radius:50%;display:none;place-items:center;color:var(--text3)}
+.clear-x.show{display:grid}
+.compact-field{height:40px;border-radius:12px;padding:0 6px 0 12px;box-shadow:none}
+.compact-field input{font-size:15px}
+.compact-field .go{height:30px;padding:0 12px;border-radius:9px;font-size:13px}
+
+.hint{display:flex;align-items:center;gap:8px;justify-content:center;min-height:22px;margin-top:12px;font-size:13px;color:var(--text2);transition:opacity .2s}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--line)}
+.chip.ig{background:linear-gradient(90deg,rgba(245,133,41,.18),rgba(221,42,123,.18));color:#ff7aa8}
+.chip.tt{background:linear-gradient(90deg,rgba(37,244,238,.14),rgba(254,44,85,.16));color:#7af7f2}
+:root[data-theme="light"] .chip.ig{color:#c1185b}
+:root[data-theme="light"] .chip.tt{color:#0c8f8b}
+.chip.err{background:rgba(255,69,58,.14);color:var(--bad)}
+
+.suggest{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:15;border-radius:var(--r-md);padding:6px;
+  background:var(--card-solid);border:1px solid var(--line2);box-shadow:var(--shadow);display:none;max-height:340px;overflow:auto}
+.suggest.open{display:block;animation:pop .2s var(--ease)}
+@keyframes pop{from{opacity:0;transform:translateY(-4px) scale(.99)}}
+.suggest .label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);padding:8px 10px 4px;font-weight:600}
+.s-item{display:flex;align-items:center;gap:12px;width:100%;padding:10px;border-radius:10px;text-align:left;font-size:15px}
+.s-item:hover,.s-item[aria-selected="true"]{background:var(--line)}
+.s-item small{color:var(--text3);margin-left:auto;font-size:12px}
+
+.section{max-width:640px;margin:40px auto 0}
+.section-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.section-h h2{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em}
+.link-btn{font-size:14px;color:var(--accent);font-weight:500}
+.recents{display:flex;flex-direction:column;gap:2px;border-radius:var(--r-md);background:var(--card);border:1px solid var(--line);overflow:hidden}
+.r-row{display:flex;align-items:center;gap:12px;padding:12px 14px;transition:background .2s}
+.r-row:hover{background:var(--line)}
+.r-row + .r-row{border-top:1px solid var(--line)}
+.r-row .main{flex:1;min-width:0;display:flex;align-items:center;gap:12px;text-align:left}
+.r-row .t{font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.r-row .s{font-size:12px;color:var(--text3)}
+.badge{width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center;color:#fff}
+.badge.ig{background:linear-gradient(45deg,var(--ig1),var(--ig2) 55%,var(--ig3))}
+.badge.tt{background:#000;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.empty-note{padding:22px;text-align:center;color:var(--text3);font-size:14px}
+
+.privacy{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.p-card{padding:18px;border-radius:var(--r-md);background:var(--card);border:1px solid var(--line)}
+.p-card svg{color:var(--accent);margin-bottom:10px}
+.p-card h3{font-size:15px;font-weight:600;margin-bottom:4px}
+.p-card p{font-size:13px;color:var(--text2)}
+.foot{max-width:640px;margin:28px auto 0;text-align:center;font-size:12px;color:var(--text3)}
+.foot button{color:var(--text2);text-decoration:underline;text-underline-offset:3px}
+
+/* ---------- profile / viewer ---------- */
+.crumbs{display:flex;align-items:center;gap:8px;padding:18px 0 10px}
+.back{display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:15px;font-weight:500;padding:6px 8px 6px 2px;border-radius:8px}
+.head{display:flex;gap:22px;align-items:center;padding:22px;border-radius:var(--r-lg);background:var(--card);border:1px solid var(--line);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.avatar{width:84px;height:84px;flex:none;border-radius:50%;padding:3px}
+.avatar.ig{background:linear-gradient(45deg,var(--ig1),var(--ig2) 55%,var(--ig3))}
+.avatar.tt{background:linear-gradient(135deg,var(--tt1),var(--tt2))}
+.avatar span{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;background:var(--card-solid);font-size:32px;font-weight:650;text-transform:uppercase;border:3px solid var(--bg)}
+.head .info{flex:1;min-width:0}
+.head h1{font-size:clamp(22px,4vw,30px);font-weight:700;letter-spacing:-.03em;overflow-wrap:anywhere}
+.head .sub{color:var(--text2);font-size:15px;margin-top:2px;overflow-wrap:anywhere}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.btn{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:550;background:var(--line);transition:background .2s,transform .2s var(--ease)}
+.btn:hover{background:var(--line2)}
+.btn:active{transform:scale(.96)}
+.btn.primary{background:var(--text);color:var(--bg)}
+.btn.primary:hover{opacity:.9}
+
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;margin-top:18px;align-items:start}
+@media (max-width:820px){.grid2{grid-template-columns:1fr}}
+.panel{border-radius:var(--r-lg);background:var(--card);border:1px solid var(--line);overflow:hidden}
+.panel-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);font-size:14px;font-weight:600}
+.panel-h .muted{color:var(--text3);font-weight:500;font-size:12px}
+.frame-wrap{position:relative;background:var(--bg2);min-height:320px;display:flex;justify-content:center}
+.frame-wrap iframe{display:block;width:100%;border:0;background:transparent;opacity:0;transition:opacity .5s var(--ease)}
+.frame-wrap iframe.ready{opacity:1}
+.frame-wrap.video{padding:18px 0}
+.frame-wrap.video iframe{width:min(100%,340px);height:min(76vh,604px);border-radius:16px}
+.frame-wrap.ig-post iframe{max-width:540px}
+
+.skeleton{position:absolute;inset:0;padding:22px;display:flex;flex-direction:column;gap:14px;transition:opacity .4s}
+.skeleton.hide{opacity:0;pointer-events:none}
+.sk{border-radius:12px;background:linear-gradient(90deg,var(--line) 0%,var(--line2) 50%,var(--line) 100%);background-size:200% 100%;animation:shimmer 1.4s linear infinite}
+@keyframes shimmer{to{background-position:-200% 0}}
+.sk-row{display:flex;gap:14px;align-items:center}
+.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;flex:1}
+.sk-grid .sk{aspect-ratio:1;border-radius:8px}
+
+.notice{display:flex;gap:12px;padding:14px 18px;font-size:13px;color:var(--text2);border-top:1px solid var(--line);background:color-mix(in srgb,var(--bg2) 50%,transparent)}
+.notice svg{flex:none;margin-top:1px;color:var(--text3)}
+.notice.slow{border-top:0;border-bottom:1px solid var(--line);background:rgba(255,214,10,.08);color:var(--text)}
+.notice.slow svg{color:var(--warn)}
+.notice a,.notice button{color:var(--accent);font-weight:550}
+
+.feat{list-style:none}
+.feat li{display:flex;gap:12px;padding:12px 18px;font-size:14px}
+.feat li + li{border-top:1px solid var(--line)}
+.feat .dot{width:8px;height:8px;border-radius:50%;flex:none;margin-top:7px}
+.dot.ok{background:var(--ok);box-shadow:0 0 0 3px rgba(48,209,88,.15)}
+.dot.lim{background:var(--warn);box-shadow:0 0 0 3px rgba(255,214,10,.15)}
+.dot.no{background:var(--text3)}
+.feat b{font-weight:600;display:block}
+.feat span{color:var(--text2);font-size:13px}
+
+.mini-form{display:flex;gap:8px;padding:14px 18px}
+.mini-form input{flex:1;min-width:0;height:38px;border-radius:10px;border:1px solid var(--line2);background:var(--bg2);padding:0 12px;font-size:14px;outline:0}
+.mini-form input:focus{border-color:var(--accent)}
+.mini-form .btn{height:38px;border-radius:10px}
+.mini-err{padding:0 18px 12px;font-size:12px;color:var(--bad);display:none}
+.mini-err.show{display:block}
+
+/* error / state screens */
+.state{text-align:center;max-width:460px;margin:12vh auto 0;padding:0 10px}
+.state .ico{width:64px;height:64px;border-radius:20px;margin:0 auto 18px;display:grid;place-items:center;background:var(--line);color:var(--text2)}
+.state h2{font-size:24px;letter-spacing:-.025em}
+.state p{color:var(--text2);margin-top:8px}
+.state .actions{justify-content:center;margin-top:20px}
+
+/* sheet */
+.scrim{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .3s}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;z-index:41;left:50%;bottom:0;width:min(560px,100%);max-height:86vh;overflow:auto;transform:translate(-50%,105%);
+  background:var(--card-solid);border-radius:26px 26px 0 0;padding:10px 24px calc(28px + env(safe-area-inset-bottom));transition:transform .45s var(--ease);box-shadow:0 -20px 60px -20px rgba(0,0,0,.5)}
+.sheet.open{transform:translate(-50%,0)}
+.sheet:not(.open){visibility:hidden;transition:transform .45s var(--ease),opacity .3s,visibility 0s .45s}
+@media (min-width:700px){.sheet{bottom:auto;top:50%;border-radius:26px;transform:translate(-50%,-46%) scale(.96);opacity:0;pointer-events:none;transition:transform .35s var(--ease),opacity .3s}
+  .sheet.open{transform:translate(-50%,-50%);opacity:1;pointer-events:auto}}
+.grab{width:38px;height:5px;border-radius:3px;background:var(--line2);margin:0 auto 16px}
+@media (min-width:700px){.grab{display:none}.sheet{padding-top:26px}}
+.sheet h2{font-size:22px;letter-spacing:-.025em;margin-bottom:6px}
+.sheet .lede{color:var(--text2);font-size:14px;margin-bottom:18px}
+.sheet h3{font-size:14px;font-weight:600;margin:18px 0 6px}
+.sheet p,.sheet li{font-size:14px;color:var(--text2)}
+.sheet ul{padding-left:18px;display:grid;gap:6px}
+.toggle-row{display:flex;align-items:center;gap:14px;padding:14px;border-radius:14px;background:var(--line);margin-top:14px}
+.toggle-row div{flex:1}
+.toggle-row b{display:block;font-size:14px;color:var(--text)}
+.toggle-row span{font-size:12px;color:var(--text2)}
+.switch{width:51px;height:31px;border-radius:999px;background:var(--line2);position:relative;flex:none;transition:background .25s}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3);transition:transform .3s var(--ease)}
+.switch[aria-checked="true"]{background:var(--ok)}
+.switch[aria-checked="true"]::after{transform:translateX(20px)}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));z-index:60;transform:translate(-50%,20px);opacity:0;pointer-events:none;
+  padding:11px 18px;border-radius:999px;background:var(--text);color:var(--bg);font-size:14px;font-weight:550;transition:all .35s var(--ease)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+
+/* ---------- TikTok dashboard ---------- */
+.tt-head{position:relative;overflow:hidden;border-radius:var(--r-lg);border:1px solid var(--line);background:var(--card);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.tt-head::before{content:"";position:absolute;inset:0 0 auto 0;height:120px;background:linear-gradient(120deg,rgba(37,244,238,.22),rgba(254,44,85,.22));filter:blur(30px);opacity:.8;pointer-events:none}
+.tt-top{position:relative;display:flex;gap:20px;align-items:center;padding:24px 24px 18px}
+.tt-top .avatar{width:92px;height:92px}
+.tt-top h1{font-size:clamp(24px,4vw,34px);font-weight:700;letter-spacing:-.035em;line-height:1.1;overflow-wrap:anywhere}
+.tt-top .handle{color:var(--text2);font-size:15px;margin-top:3px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--line)}
+.status.ok{color:var(--ok);background:rgba(48,209,88,.12)}
+.status.warn{color:var(--warn);background:rgba(255,214,10,.12)}
+.status i{width:6px;height:6px;border-radius:50%;background:currentColor}
+.card-frame{position:relative;margin:0 14px 14px;border-radius:18px;overflow:hidden;background:#fff;min-height:200px}
+.card-frame iframe{display:block;width:100%;height:470px;border:0;opacity:0;transition:opacity .5s var(--ease),height .35s var(--ease)}
+.card-frame iframe.ready{opacity:1}
+.card-frame .skeleton{background:var(--bg2)}
+.card-note{position:relative;display:flex;gap:8px;align-items:flex-start;padding:0 22px 16px;font-size:12px;color:var(--text3)}
+.card-note svg{flex:none;margin-top:1px}
+
+.tabs{position:sticky;top:64px;z-index:10;display:flex;gap:4px;margin:18px 0 0;padding:5px;border-radius:16px;background:color-mix(in srgb,var(--card-solid) 85%,transparent);
+  border:1px solid var(--line);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:1 0 auto;display:flex;align-items:center;justify-content:center;gap:7px;height:38px;padding:0 14px;border-radius:11px;font-size:14px;font-weight:550;color:var(--text2);white-space:nowrap;transition:background .25s,color .25s}
+.tab:hover{color:var(--text)}
+.tab[aria-selected="true"]{background:var(--text);color:var(--bg)}
+.tab .n{font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--line2)}
+.tab[aria-selected="true"] .n{background:color-mix(in srgb,var(--bg) 25%,transparent)}
+.tab .lockdot{width:6px;height:6px;border-radius:50%;background:var(--text3)}
+.tab-body{margin-top:18px;animation:rise .4s var(--ease) both}
+
+.unavail{padding:36px 28px;text-align:center;border-radius:var(--r-lg);background:var(--card);border:1px solid var(--line)}
+.unavail .ico{width:60px;height:60px;border-radius:18px;margin:0 auto 16px;display:grid;place-items:center;background:var(--line);color:var(--text2)}
+.unavail h2{font-size:22px;letter-spacing:-.025em}
+.unavail > p{color:var(--text2);max-width:520px;margin:8px auto 0}
+.why{max-width:540px;margin:22px auto 0;text-align:left;display:grid;gap:10px}
+.why div{display:flex;gap:12px;padding:14px 16px;border-radius:14px;background:var(--line);font-size:14px;color:var(--text2)}
+.why b{color:var(--text);font-weight:600}
+.why svg{flex:none;margin-top:2px;color:var(--text3)}
+.unavail .actions{justify-content:center;margin-top:20px}
+
+.lib-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}
+.lib-tools .grow{flex:1}
+.lib-add{display:grid;gap:8px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.lib-add textarea{width:100%;min-height:76px;resize:vertical;border-radius:12px;border:1px solid var(--line2);background:var(--bg2);padding:10px 12px;font:inherit;font-size:14px;color:var(--text);outline:0}
+.lib-add textarea:focus{border-color:var(--accent)}
+.lib-add .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.lib-add .msg{font-size:12px;color:var(--text2)}
+.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:16px 18px}
+.vcard{position:relative;aspect-ratio:9/16;border-radius:14px;overflow:hidden;background:#000;border:1px solid var(--line)}
+.vcard .art{position:absolute;inset:0;background:radial-gradient(80% 60% at 30% 25%,hsla(var(--h),90%,60%,.55),transparent 70%),radial-gradient(70% 60% at 75% 80%,hsla(calc(var(--h) + 140),90%,55%,.45),transparent 70%),#0d0d12}
+.vcard .big{position:absolute;top:14px;left:14px;font-size:40px;font-weight:800;letter-spacing:-.04em;color:rgba(255,255,255,.9);line-height:1}
+.vcard .play{opacity:.9!important;transform:translate(-50%,-50%)!important}
+.vcard iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
+.vcard .hit{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-end;padding:10px;text-align:left;color:#fff;
+  background:linear-gradient(transparent 55%,rgba(0,0,0,.75));transition:background .25s}
+.vcard .hit:hover{background:linear-gradient(rgba(0,0,0,.1),rgba(0,0,0,.8))}
+.vcard .hit b{font-size:13px;font-weight:600}
+.vcard .hit small{font-size:11px;opacity:.75}
+.vcard .play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);width:46px;height:46px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(255,255,255,.2);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);opacity:0;transition:all .25s var(--ease)}
+.vcard .hit:hover .play{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.vcard .rm{position:absolute;top:8px;right:8px;z-index:3;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;background:rgba(0,0,0,.5);opacity:0;transition:opacity .2s}
+.vcard:hover .rm,.vcard:focus-within .rm{opacity:1}
+@media (hover:none){.vcard .rm{opacity:1}}
+.search-in{height:36px;min-width:180px;border-radius:10px;border:1px solid var(--line2);background:var(--bg2);padding:0 12px;font-size:14px;outline:0}
+.search-in:focus{border-color:var(--accent)}
+
+.kv{list-style:none}
+.kv li{display:grid;grid-template-columns:170px 1fr;gap:14px;padding:13px 18px;font-size:14px}
+.kv li + li{border-top:1px solid var(--line)}
+.kv span:first-child{color:var(--text2)}
+.kv span:last-child{overflow-wrap:anywhere}
+.kv .src{display:block;font-size:12px;color:var(--text3);margin-top:2px}
+@media (max-width:560px){.kv li{grid-template-columns:1fr;gap:2px}}
+
+.people{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 8px;scrollbar-width:none}
+.people::-webkit-scrollbar{display:none}
+.person{flex:none;width:84px;text-align:center;font-size:12px}
+.person .avatar{width:64px;height:64px;margin:0 auto 6px}
+.person .avatar span{font-size:22px;border-width:2px}
+.person div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text2)}
+.person b{display:block;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* theater */
+.theater{position:relative;border-radius:var(--r-lg);background:#000;overflow:hidden;display:flex;flex-direction:column;border:1px solid var(--line)}
+.theater .stage{position:relative;display:flex;justify-content:center;align-items:center;padding:18px 0;min-height:420px;
+  background:radial-gradient(60% 60% at 50% 40%,rgba(37,244,238,.08),transparent 70%),radial-gradient(50% 50% at 60% 70%,rgba(254,44,85,.08),transparent 70%)}
+.theater iframe{width:min(100%,360px);height:min(74vh,640px);border:0;border-radius:16px;opacity:0;transition:opacity .45s var(--ease)}
+.theater iframe.ready{opacity:1}
+.theater .skel{position:absolute;width:min(100%,360px);height:min(74vh,640px);border-radius:16px}
+.theater:fullscreen{border-radius:0;border:0}
+.theater:fullscreen .stage{flex:1}
+.theater:fullscreen iframe,.theater:fullscreen .skel{height:calc(100vh - 110px);width:calc((100vh - 110px)*.5625);max-width:100%}
+.controls{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 14px calc(14px + env(safe-area-inset-bottom));color:#fff;background:rgba(255,255,255,.04);border-top:1px solid rgba(255,255,255,.08)}
+.ctl{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:#fff;transition:background .2s,transform .2s var(--ease),opacity .2s}
+.ctl:hover{background:rgba(255,255,255,.12)}
+.ctl:active{transform:scale(.9)}
+.ctl:disabled{opacity:.3;cursor:default;background:none}
+.ctl.big{width:54px;height:54px;background:#fff;color:#000}
+.ctl.big:hover{background:#e8e8ea}
+.ctl.big:disabled{background:rgba(255,255,255,.3)}
+.counter{font-size:12px;color:rgba(255,255,255,.6);min-width:56px;text-align:center;font-variant-numeric:tabular-nums}
+.vid-err{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;color:#fff;gap:10px;background:#000}
+.vid-err.show{display:flex}
+.vid-err p{color:rgba(255,255,255,.65);max-width:340px;font-size:14px}
+.vid-err .btn{background:rgba(255,255,255,.14);color:#fff}
+.queue{list-style:none;max-height:520px;overflow:auto}
+.queue li button{display:flex;align-items:center;gap:12px;width:100%;padding:11px 18px;text-align:left;font-size:14px;transition:background .2s}
+.queue li button:hover{background:var(--line)}
+.queue li + li{border-top:1px solid var(--line)}
+.queue .num{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:700;background:var(--line);flex:none}
+.queue .cur .num{background:linear-gradient(135deg,var(--tt1),var(--tt2));color:#000}
+.queue small{display:block;color:var(--text3);font-size:12px}
+.kbd{display:inline-block;padding:0 6px;border-radius:5px;border:1px solid var(--line2);font-size:11px;font-family:ui-monospace,monospace;color:var(--text2)}
+.opt{display:flex;align-items:center;gap:10px;padding:12px 18px;border-top:1px solid var(--line);font-size:14px}
+.opt .grow{flex:1}
+.opt .switch{transform:scale(.8);transform-origin:right}
+
+.avatar-img{cursor:zoom-in;padding:3px;border:0}
+.avatar-img img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;border:3px solid var(--bg);background:var(--card-solid)}
+.vbadge{vertical-align:-2px;margin-left:4px}
+.bio{margin-top:10px;font-size:15px;color:var(--text);max-width:560px}
+.biolink{display:inline-flex;align-items:center;gap:6px;max-width:100%;overflow-wrap:anywhere;margin-top:6px;font-size:14px;font-weight:550;color:var(--accent)}
+.tag{color:var(--accent);font-weight:550}
+.mention{color:var(--accent);font-weight:550}
+.stats{position:relative;display:grid;grid-template-columns:repeat(4,1fr);margin:0 14px 14px;border-radius:18px;background:var(--line);overflow:hidden}
+.stat{text-align:center;padding:16px 6px}
+.stat + .stat{box-shadow:inset 1px 0 0 var(--line)}
+.stat b{display:block;font-size:clamp(19px,3.2vw,26px);font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--text2)}
+.vcard.sk{border:0}
+.vcard.live img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.vcard .cap{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12px;opacity:.92;margin-bottom:6px;line-height:1.35}
+.vcard .views{display:flex;align-items:center;gap:5px;font-size:13px}
+.pinb{position:absolute;top:8px;left:8px;display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:var(--tt2);color:#fff;font-size:11px;font-weight:700}
+.tagrow{display:flex;gap:8px;overflow-x:auto;padding:12px 18px 0;scrollbar-width:none}
+.tagrow::-webkit-scrollbar{display:none}
+.tagchip{flex:none;padding:6px 12px;border-radius:999px;background:var(--line);font-size:13px;font-weight:550;color:var(--text2);transition:all .2s}
+.tagchip[aria-pressed="true"]{background:var(--text);color:var(--bg)}
+details.older summary{list-style:none}
+details.older summary::-webkit-details-marker{display:none}
+details.older[open] summary{border-bottom:1px solid var(--line)}
+.lightbox{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:24px;background:rgba(0,0,0,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);opacity:0;transition:opacity .3s}
+.lightbox.open{opacity:1}
+.lightbox img{max-width:min(92vw,720px);max-height:82vh;border-radius:24px;box-shadow:0 30px 80px rgba(0,0,0,.6);transform:scale(.94);transition:transform .35s var(--ease)}
+.lightbox.open img{transform:none}
+.lb-x{position:absolute;top:calc(16px + env(safe-area-inset-top));right:16px;background:rgba(255,255,255,.15);color:#fff}
+.vinfo{padding:16px 18px;font-size:14px;line-height:1.5}
+.vmeta{display:flex;flex-wrap:wrap;gap:8px;padding:0 18px 16px}
+
+/* ---------- v3: bottom nav ---------- */
+main{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
+.bnav{position:fixed;z-index:30;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));display:flex;gap:2px;padding:6px;border-radius:24px;
+  background:color-mix(in srgb,var(--card-solid) 78%,transparent);border:1px solid var(--line2);backdrop-filter:saturate(180%) blur(24px);-webkit-backdrop-filter:saturate(180%) blur(24px);box-shadow:0 18px 50px -14px rgba(0,0,0,.55)}
+.bnav a{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:68px;padding:7px 10px 6px;border-radius:18px;color:var(--text3);font-size:10.5px;font-weight:600;transition:color .2s,background .25s}
+.bnav a:hover{color:var(--text)}
+.bnav a[aria-current="page"]{color:var(--text);background:var(--line)}
+.bnav a:active{transform:scale(.94)}
+@media (max-width:560px){.bnav{left:10px;right:10px;transform:none;justify-content:space-around;bottom:calc(8px + env(safe-area-inset-bottom))}.bnav a{min-width:0;flex:1;padding:7px 2px 6px}}
+body.vv-open{overflow:hidden}
+body.vv-open .bnav,body.vv-open .bar{visibility:hidden}
+.toast{z-index:120;bottom:calc(96px + env(safe-area-inset-bottom))}
+.page-h{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;padding:26px 2px 16px}
+.page-h h1{font-size:clamp(30px,6vw,40px);font-weight:700;letter-spacing:-.035em;line-height:1.05}
+.page-h p{color:var(--text2);font-size:14px;margin-top:4px}
+.btn.sm{height:30px;padding:0 11px;font-size:12.5px}
+.btn:disabled{opacity:.4;cursor:default}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:0 0 16px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.fchip{flex:none;display:inline-flex;align-items:center;gap:4px;padding:5px 6px 5px 12px;border-radius:999px;background:var(--line);font-size:13px;font-weight:600}
+.fchip button{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:var(--text3)}
+.fchip button:hover{background:var(--line2);color:var(--text)}
+.loading-line{font-size:13px;color:var(--text2);padding:0 2px 12px}
+.vcard .by{position:absolute;top:8px;right:8px;max-width:70%;padding:3px 8px;border-radius:999px;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vcard .views em{font-style:normal;font-weight:500;opacity:.7;margin-left:auto;font-size:11px}
+.person-wrap{flex:none;display:flex;flex-direction:column;align-items:center;gap:6px}
+.person-wrap .btn{width:84px;justify-content:center}
+
+/* ---------- v3: vertical viewer ---------- */
+.vv{position:fixed;inset:0;z-index:80;background:#000;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .3s var(--ease);color:#fff;touch-action:none;overscroll-behavior:contain}
+.vv.open{opacity:1}
+.vv-stage{position:relative;height:100%;width:100%;max-width:calc(100dvh * .5625);overflow:hidden;background:#000}
+@media (min-width:700px){.vv-stage{height:calc(100dvh - 32px);border-radius:22px;box-shadow:0 30px 90px rgba(0,0,0,.6)}.vv{background:radial-gradient(60% 60% at 50% 40%,#1a1a22,#000)}}
+.vv-slot{position:absolute;left:0;right:0;top:calc(58px + env(safe-area-inset-top));bottom:calc(30px + env(safe-area-inset-bottom));transition:transform .42s var(--ease),opacity .42s var(--ease)}
+.vv-slot.in-up{animation:vvInUp .42s var(--ease) both}.vv-slot.in-down{animation:vvInDown .42s var(--ease) both}
+.vv-slot.out-up{transform:translateY(-100%);opacity:.4}.vv-slot.out-down{transform:translateY(100%);opacity:.4}
+@keyframes vvInUp{from{transform:translateY(100%)}to{transform:none}}
+@keyframes vvInDown{from{transform:translateY(-100%)}to{transform:none}}
+.vv-cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.85)}
+.vv-slot iframe{position:absolute;inset:0;width:100%;height:100%;border:0;opacity:0;transition:opacity .4s}
+.vv-slot iframe.ready{opacity:1}
+.vv-touch{position:absolute;inset:0;z-index:2;cursor:pointer}
+.vv-top{position:absolute;z-index:4;top:0;left:0;right:0;height:calc(58px + env(safe-area-inset-top));display:flex;align-items:center;gap:6px;padding:env(safe-area-inset-top) 10px 0;background:#000;pointer-events:none}
+.vv-top > *{pointer-events:auto}
+.vv-topx{flex:1;display:flex;justify-content:center;align-items:center;gap:8px;min-width:0}
+.vv-topx .btn{background:rgba(255,255,255,.18);color:#fff}.vv-topx .btn.primary{background:var(--tt2)}
+.vv-count{font-size:13px;font-weight:600;opacity:.85;font-variant-numeric:tabular-nums}
+.vv-ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.12);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:transform .2s var(--ease),background .2s,opacity .2s}
+.vv-ic:hover{background:rgba(255,255,255,.22)}
+.vv-ic:active{transform:scale(.9)}
+.vv-ic:disabled{opacity:.25;cursor:default}
+.vv-ic.hint{background:#fff;color:#000}
+.vv-ic.lg{width:50px;height:50px}
+.vv-side{position:absolute;right:max(24px,calc(50% - 100dvh*.28 - 90px));top:50%;transform:translateY(-50%);display:none;flex-direction:column;gap:12px;z-index:5}
+@media (min-width:700px){.vv-side{display:flex}}
+.vv-info{position:absolute;z-index:4;left:0;right:70px;bottom:calc(44px + env(safe-area-inset-bottom));padding:0 14px;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.5)}
+.vv-info > *{pointer-events:auto}
+.vv-who{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.vv-av{width:38px;height:38px;border-radius:50%;padding:2px;background:linear-gradient(135deg,var(--tt1),var(--tt2));flex:none}
+.vv-av span{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;background:#111;font-weight:700;text-transform:uppercase}
+.vv-name{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.vv-name b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vv-name small{font-size:12px;opacity:.75}
+.vv-who .btn{background:rgba(255,255,255,.18);color:#fff;text-shadow:none}
+.vv-who .btn.primary{background:var(--tt2);color:#fff}
+.vv-cap{font-size:14px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+.vv-cap.open{-webkit-line-clamp:12;max-height:40vh;overflow:auto}
+.vv-cap .tag,.vv-cap .mention{color:#fff;font-weight:700}
+.vv-meta{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px;font-size:12px;opacity:.9}
+.vv-meta span{display:inline-flex;align-items:center;gap:4px}
+.vv-link{display:inline-flex;align-items:center;gap:5px;color:#fff;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.15)}
+.vv-prog{position:absolute;z-index:5;left:0;right:0;bottom:env(safe-area-inset-bottom);height:30px;background:#000;display:flex;align-items:center;gap:10px;padding:0 14px;cursor:pointer;touch-action:none}
+.vv-track{position:relative;flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.28);transition:height .2s}
+.vv-prog:hover .vv-track,.vv-prog:active .vv-track{height:5px}
+.vv-track i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:#fff}
+.vv-track b{position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:#fff;transform:translate(-50%,-50%) scale(0);transition:transform .2s}
+.vv-prog:hover .vv-track b,.vv.paused .vv-track b{transform:translate(-50%,-50%) scale(1)}
+.vv-prog span{font-size:11px;font-variant-numeric:tabular-nums;opacity:.8;min-width:74px;text-align:right}
+.vv-flash{position:absolute;z-index:3;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;opacity:0}
+.vv-flash svg{width:66px;height:66px;padding:16px;border-radius:50%;background:rgba(0,0,0,.45);box-sizing:content-box}
+.vv-flash span{display:block;padding:10px 16px;border-radius:999px;background:rgba(0,0,0,.6);font-size:14px;font-weight:600;white-space:nowrap}
+.vv-flash.show{animation:vvFlash .9s ease both}
+@keyframes vvFlash{0%{opacity:0;transform:translate(-50%,-50%) scale(.8)}20%{opacity:1;transform:translate(-50%,-50%) scale(1)}70%{opacity:1}100%{opacity:0}}
+.vv.paused .vv-flash{opacity:1;animation:none}
+.vv-err{position:absolute;inset:0;z-index:6;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:30px;background:#000}
+.vv-err.show{display:flex}
+.vv-err p{opacity:.7;font-size:14px;max-width:300px}
+.vv-err .btn{background:rgba(255,255,255,.15);color:#fff}
+
+@media (max-width:560px){
+  .stat b{font-size:18px}
+  .stat{padding:12px 2px}
+  .bio{margin-left:auto;margin-right:auto}
+  .tt-top{flex-direction:column;text-align:center}
+  .tt-top .handle{justify-content:center}
+  .tabs{top:58px}
+  .bar{padding:10px 14px}
+  main{padding:0 14px 60px}
+  .head{flex-direction:column;text-align:center;padding:22px 16px}
+  .actions{justify-content:center}
+  .field{height:56px;padding-left:16px}
+  .go span{display:none}
+  .go{padding:0 14px}
+  .bar.compact .brand-name{display:none}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="bar" id="bar">
+  <a href="#/" class="brand" aria-label="GhostView home">
+    <span class="logo"><svg width="18" height="18" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 8C21 8 13 16.2 13 27v27l6-5 6.5 5 6.5-5 6.5 5 6.5-5 6 5V27C51 16.2 43 8 32 8z" fill="#fff"/><circle cx="25" cy="28" r="4" fill="#111"/><circle cx="39" cy="28" r="4" fill="#111"/></svg></span>
+    <span class="brand-name">GhostView</span>
+  </a>
+  <div class="spacer"></div>
+  <form class="bar-search" id="barForm" role="search">
+    <div class="field compact-field">
+      <input id="barInput" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Search a username or paste a link" aria-label="Search">
+      <button class="go" type="submit">Go</button>
+    </div>
+  </form>
+  <button class="icon-btn" id="privacyBtn" aria-label="Privacy information">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/></svg>
+  </button>
+  <button class="icon-btn" id="themeBtn" aria-label="Toggle light or dark mode"></button>
+</header>
+
+<main id="app" aria-live="polite"></main>
+<nav class="bnav" id="bnav" aria-label="Main">
+  <a href="#/" data-nav="home"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1v-8.5z"/></svg><span>Home</span></a>
+  <a href="#/search" data-nav="search"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span>Search</span></a>
+  <a href="#/following" data-nav="following"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M10.5 9.5v5l4-2.5-4-2.5z" fill="currentColor"/></svg><span>Following</span></a>
+  <a href="#/explore" data-nav="explore"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5 5-2z"/></svg><span>Explore</span></a>
+  <a href="#/history" data-nav="history"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6M3.5 4v4h4"/><path d="M12 8v4.5l3 2"/></svg><span>History</span></a>
+</nav>
+
+<div class="scrim" id="scrim"></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="grab"></div>
+  <h2 id="sheetTitle">How GhostView handles privacy</h2>
+  <p class="lede">Plain answers, no overpromising.</p>
+
+  <h3>What GhostView does</h3>
+  <ul>
+    <li>No GhostView account and no social media login.</li>
+    <li>No GhostView server: nothing you search is sent to us. Recent searches stay on this device only.</li>
+    <li>Never likes, follows, comments, messages or interacts with anyone. GhostView sends no notifications to profile owners.</li>
+    <li>Only shows what Instagram and TikTok publish through their official public embeds. Private accounts stay private, and GhostView never gets around blocks or sign-in walls.</li>
+  </ul>
+
+  <h3>What GhostView can't promise</h3>
+  <ul>
+    <li>Content loads straight from Instagram and TikTok, so those platforms can see your IP address and browser, the same as visiting them logged out.</li>
+    <li>If you're signed in to Instagram or TikTok in this browser, their embeds may be able to read your cookies. Strict mode (below) blocks that in Chrome and Edge. For the most privacy, use a private window.</li>
+    <li>GhostView can't control what the platforms log on their side.</li>
+    <li>Downloads only happen through TikTok's own Save video option, which only appears if the creator allows it. GhostView never downloads videos itself.</li>
+  </ul>
+
+  <div class="toggle-row">
+    <div><b>Strict mode</b><span>Load embeds without your cookies (works in Chrome and Edge; other browsers ignore it). Turn off if embeds won't load.</span></div>
+    <button class="switch" id="strictSwitch" role="switch" aria-checked="true" aria-label="Strict mode"></button>
+  </div>
+  <div class="actions" style="margin-top:20px">
+    <button class="btn primary" id="sheetClose">Done</button>
+  </div>
+</section>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= utilities ================= */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('gv:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('gv:' + k, JSON.stringify(v)); } catch {} }
+};
+let toastT;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200);
+}
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); toast('Link copied'); }
+  catch { toast('Copy not allowed here'); }
+}
+
+/* ================= icons ================= */
+const I = {
+  ig: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>',
+  tt: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16.6 5.82A4.28 4.28 0 0 1 15.54 3h-3.09v12.4a2.59 2.59 0 0 1-2.59 2.5 2.6 2.6 0 0 1 0-5.2c.27 0 .53.04.78.12V9.66a5.73 5.73 0 0 0-.78-.05A5.69 5.69 0 1 0 15.55 15.3V9.01a7.3 7.3 0 0 0 4.27 1.37V7.3a4.28 4.28 0 0 1-3.22-1.48z"/></svg>',
+  search: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
+  arrow: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  back: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+  x: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  ext: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+  copy: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg>',
+  clock: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  info: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>',
+  warn: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9.5 17h-19L12 3z"/><path d="M12 10v4M12 17h.01"/></svg>',
+  user: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+  lock: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
+  eye: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  device: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6" y="2.5" width="12" height="19" rx="3"/><path d="M11 18.5h2"/></svg>',
+  sun: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  moon: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg>',
+  link: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>'
+};
+const P = { instagram: { name: 'Instagram', key: 'ig' }, tiktok: { name: 'TikTok', key: 'tt' } };
+
+/* ================= parsing ================= */
+const RX = {
+  igUser: /^[a-zA-Z0-9._]{1,30}$/,
+  ttUser: /^[a-zA-Z0-9._]{2,24}$/,
+  igCode: /^[A-Za-z0-9_-]{5,64}$/,
+  ttId: /^\d{8,25}$/
+};
+const IG_RESERVED = new Set(['explore','accounts','direct','about','legal','developer','reels','stories','p','reel','tv','web','challenge','privacy','terms','emails','directory','api']);
+const TT_RESERVED = new Set(['foryou','following','explore','live','discover','tag','music','search','upload','login','signup','legal','about']);
+
+// Returns {type:'profile'|'post'|'video', platform, ...} or {type:'error', title, msg, url?}
+function parse(raw, platformPref) {
+  let s = (raw || '').trim();
+  if (!s) return { type: 'error', title: 'Nothing to search', msg: 'Type a username or paste a link.' };
+
+  const looksUrl = /^(https?:\/\/)?([\w-]+\.)*(instagram\.com|instagr\.am|tiktok\.com)(\/|$)/i.test(s) || /^https?:\/\//i.test(s);
+  if (looksUrl) {
+    let u;
+    try { u = new URL(/^https?:\/\//i.test(s) ? s : 'https://' + s); }
+    catch { return { type: 'error', title: "That link doesn't look right", msg: 'Check the address and try again.' }; }
+    const host = u.hostname.toLowerCase();
+    const segs = u.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+
+    if (/(^|\.)instagram\.com$|(^|\.)instagr\.am$/.test(host)) {
+      const postKinds = { p: 'p', reel: 'reel', reels: 'reel', tv: 'tv' };
+      let i = postKinds[segs[0]] ? 0 : (segs[1] && postKinds[segs[1]] ? 1 : -1);
+      if (i >= 0) {
+        const code = segs[i + 1];
+        if (code && RX.igCode.test(code)) return { type: 'post', platform: 'instagram', kind: postKinds[segs[i]], code, user: i === 1 ? segs[0] : null };
+        return { type: 'error', title: 'Incomplete post link', msg: 'That Instagram link is missing the post code. Copy the full link from the Share menu.' };
+      }
+      if (segs[0] === 'stories' || segs[0] === 's') return { type: 'error', title: 'Stories aren\'t supported', msg: 'Instagram doesn\'t make Stories available through any official public embed, so GhostView can\'t show them. Posts, Reels and profiles work.', url: u.href };
+      if (!segs[0]) return { type: 'error', title: 'Nothing to open', msg: 'Paste a profile, post or Reel link, or type a username.' };
+      if (IG_RESERVED.has(segs[0].toLowerCase()) || !RX.igUser.test(segs[0])) return { type: 'error', title: 'Unsupported Instagram link', msg: 'GhostView supports profile, post and Reel links.' , url: u.href };
+      return { type: 'profile', platform: 'instagram', user: segs[0].toLowerCase() };
+    }
+
+    if (/(^|\.)tiktok\.com$/.test(host)) {
+      if (/^(vm|vt)\./.test(host) || segs[0] === 't') return { type: 'error', title: 'Short links need one extra step', msg: 'TikTok short links hide the real address, and resolving them would need a server. Open the link, then copy the full address (tiktok.com/@user/video/…) and paste it here.', url: u.href };
+      if (segs[0] === 'embed' || segs[0] === 'player') {
+        const id = segs.find(x => RX.ttId.test(x));
+        const at = segs.find(x => x.startsWith('@'));
+        if (id) return { type: 'video', platform: 'tiktok', id, user: null };
+        if (at && RX.ttUser.test(at.slice(1))) return { type: 'profile', platform: 'tiktok', user: at.slice(1).toLowerCase() };
+      }
+      if (segs[0] && segs[0].startsWith('@')) {
+        const user = segs[0].slice(1);
+        if (!RX.ttUser.test(user)) return { type: 'error', title: 'That username isn\'t valid', msg: 'TikTok usernames use 2–24 letters, numbers, periods or underscores.' };
+        if ((segs[1] === 'video' || segs[1] === 'photo') && segs[2]) {
+          if (RX.ttId.test(segs[2])) return { type: 'video', platform: 'tiktok', id: segs[2], user: user.toLowerCase() };
+          return { type: 'error', title: 'Incomplete video link', msg: 'That TikTok link is missing the video number.' };
+        }
+        if (segs[1] === 'live') return { type: 'error', title: 'LIVE isn\'t supported', msg: 'TikTok LIVE streams aren\'t available through official embeds.', url: u.href };
+        return { type: 'profile', platform: 'tiktok', user: user.toLowerCase() };
+      }
+      return { type: 'error', title: 'Unsupported TikTok link', msg: 'GhostView supports profile links (tiktok.com/@user) and video links.', url: u.href };
+    }
+    return { type: 'error', title: 'Unsupported site', msg: 'GhostView works with Instagram and TikTok links only.' };
+  }
+
+  // Plain text: username or bare TikTok id
+  s = s.replace(/^@+/, '');
+  if (/\s/.test(s)) return { type: 'error', title: 'Usernames can\'t contain spaces', msg: 'Enter the exact @handle, not the display name.' };
+  if (platformPref === 'tiktok') {
+    if (RX.ttId.test(s) && s.length >= 15) return { type: 'video', platform: 'tiktok', id: s, user: null };
+    if (!RX.ttUser.test(s)) return { type: 'error', title: 'That username isn\'t valid', msg: 'TikTok usernames use 2–24 letters, numbers, periods or underscores.' };
+    return { type: 'profile', platform: 'tiktok', user: s.toLowerCase() };
+  }
+  if (!RX.igUser.test(s) || IG_RESERVED.has(s.toLowerCase())) return { type: 'error', title: 'That username isn\'t valid', msg: 'Instagram usernames use up to 30 letters, numbers, periods or underscores.' };
+  return { type: 'profile', platform: 'instagram', user: s.toLowerCase() };
+}
+
+function routeFor(r) {
+  if (r.type === 'profile') return `#/${r.platform}/u/${encodeURIComponent(r.user)}`;
+  if (r.type === 'post') return `#/instagram/${r.kind}/${encodeURIComponent(r.code)}`;
+  if (r.type === 'video') return `#/tiktok/v/${r.id}${r.user ? '/' + encodeURIComponent(r.user) : ''}`;
+  return '#/';
+}
+function originalUrl(r) {
+  if (r.platform === 'instagram') return r.type === 'profile' ? `https://www.instagram.com/${r.user}/` : `https://www.instagram.com/${r.kind}/${r.code}/`;
+  if (r.type === 'profile') return `https://www.tiktok.com/@${r.user}`;
+  return r.user ? `https://www.tiktok.com/@${r.user}/video/${r.id}` : `https://www.tiktok.com/player/v1/${r.id}`;
+}
+function embedUrl(r) {
+  if (r.platform === 'instagram') return r.type === 'profile' ? `https://www.instagram.com/${r.user}/embed/` : `https://www.instagram.com/${r.kind}/${r.code}/embed/captioned/`;
+  if (r.type === 'profile') return `https://www.tiktok.com/embed/@${r.user}`;
+  return `https://www.tiktok.com/player/v1/${r.id}?music_info=1&description=1&rel=0`;
+}
+function describe(r) {
+  if (r.type === 'profile') return { title: '@' + r.user, sub: P[r.platform].name + ' profile' };
+  if (r.type === 'post') return { title: (r.kind === 'reel' ? 'Reel ' : 'Post ') + r.code, sub: 'Instagram ' + (r.kind === 'reel' ? 'Reel' : 'post') };
+  return { title: r.user ? '@' + r.user + ' · video' : 'TikTok video', sub: 'TikTok video' };
+}
+
+/* ================= state ================= */
+let platform = store.get('platform', 'tiktok');
+let strict = store.get('strict', true);
+let recents = store.get('recents', []);
+
+function addRecent(r) {
+  const key = routeFor(r);
+  recents = [{ key, ...r, t: Date.now() }, ...recents.filter(x => x.key !== key)].slice(0, 12);
+  store.set('recents', recents);
+}
+function removeRecent(key) { recents = recents.filter(x => x.key !== key); store.set('recents', recents); }
+
+/* ================= theme ================= */
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  $('#themeBtn').innerHTML = t === 'dark' ? I.sun : I.moon;
+  $('#themeBtn').setAttribute('aria-label', t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+}
+let theme = store.get('theme', null) || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+applyTheme(theme);
+$('#themeBtn').onclick = () => { theme = theme === 'dark' ? 'light' : 'dark'; store.set('theme', theme); applyTheme(theme); };
+
+/* ================= privacy sheet ================= */
+function openSheet() { $('#scrim').classList.add('open'); $('#sheet').classList.add('open'); $('#sheetClose').focus(); }
+function closeSheet() { $('#scrim').classList.remove('open'); $('#sheet').classList.remove('open'); }
+$('#privacyBtn').onclick = openSheet;
+$('#scrim').onclick = closeSheet;
+$('#sheetClose').onclick = closeSheet;
+addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+const sw = $('#strictSwitch');
+sw.setAttribute('aria-checked', String(strict));
+sw.onclick = () => {
+  strict = !strict; store.set('strict', strict); sw.setAttribute('aria-checked', String(strict));
+  toast(strict ? 'Strict mode on' : 'Strict mode off');
+  if (location.hash.length > 2) render();
+};
+
+/* ================= search behaviour ================= */
+function go(raw) {
+  const r = parse(raw, platform);
+  if (r.type === 'error') { showError(r); return; }
+  if (r.platform !== platform) setPlatform(r.platform, true);
+  addRecent(r);
+  const h = routeFor(r);
+  if (location.hash === h) render(); else location.hash = h;
+}
+
+function hintFor(raw) {
+  const s = raw.trim();
+  if (!s) return '';
+  const r = parse(s, platform);
+  if (r.type === 'error') return `<span class="chip err">${esc(r.title)}</span>`;
+  const k = P[r.platform].key;
+  const what = r.type === 'profile' ? 'profile' : r.type === 'post' ? (r.kind === 'reel' ? 'Reel' : 'post') : 'video';
+  const auto = /tiktok|instagram|instagr/i.test(s) ? 'Detected' : 'Will search';
+  return `<span class="chip ${k}">${I[k]} ${P[r.platform].name}</span> ${auto} ${what}${r.user ? ' · @' + esc(r.user) : ''}`;
+}
+
+const SUGGESTED = {
+  instagram: ['nasa', 'natgeo', 'nike'],
+  tiktok: ['nasa', 'washingtonpost', 'nba']
+};
+
+function bindSearch(form, input, { hintEl, suggestEl, clearEl } = {}) {
+  let sel = -1;
+  const items = () => suggestEl ? [...suggestEl.querySelectorAll('.s-item')] : [];
+  const close = () => { if (suggestEl) { suggestEl.classList.remove('open'); input.setAttribute('aria-expanded', 'false'); } sel = -1; };
+  const update = () => {
+    const v = input.value;
+    if (hintEl) hintEl.innerHTML = hintFor(v);
+    if (clearEl) clearEl.classList.toggle('show', !!v);
+    const goBtn = form.querySelector('.go'); if (goBtn) goBtn.disabled = !v.trim();
+    if (!suggestEl) return;
+    const q = v.trim().replace(/^@/, '').toLowerCase();
+    if (/[/.:]/.test(q) && q.includes('.com')) { close(); return; }
+    const recentHits = recents.filter(x => !q || describe(x).title.toLowerCase().includes(q)).slice(0, 5);
+    const sugg = SUGGESTED[platform].filter(u => !q || u.includes(q)).filter(u => !recents.some(x => x.type === 'profile' && x.user === u && x.platform === platform)).slice(0, 3);
+    let html = '';
+    if (recentHits.length) {
+      html += '<div class="label">Recent</div>' + recentHits.map(x => {
+        const d = describe(x);
+        return `<button type="button" class="s-item" role="option" data-route="${esc(x.key)}"><span class="badge ${P[x.platform].key}">${I[P[x.platform].key]}</span>${esc(d.title)}<small>${esc(d.sub)}</small></button>`;
+      }).join('');
+    }
+    if (sugg.length) {
+      html += `<div class="label">Public ${P[platform].name} accounts to try</div>` + sugg.map(u =>
+        `<button type="button" class="s-item" role="option" data-q="${esc(u)}"><span class="badge ${P[platform].key}">${I[P[platform].key]}</span>@${esc(u)}<small>${P[platform].name}</small></button>`).join('');
+    }
+    if (!q) html += `<div class="label">Tip</div><div class="s-item" style="cursor:default;color:var(--text2);font-size:13px">Paste any instagram.com or tiktok.com link and the platform is detected automatically.</div>`;
+    suggestEl.innerHTML = html;
+    const has = !!suggestEl.querySelector('.s-item[data-route],.s-item[data-q]');
+    suggestEl.classList.toggle('open', has && document.activeElement === input);
+    input.setAttribute('aria-expanded', String(has));
+    sel = -1;
+  };
+  input.addEventListener('input', update);
+  input.addEventListener('focus', update);
+  input.addEventListener('blur', () => setTimeout(close, 150));
+  input.addEventListener('keydown', e => {
+    const list = items().filter(x => x.dataset.route || x.dataset.q);
+    if (!suggestEl || !suggestEl.classList.contains('open') || !list.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      sel = (sel + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length;
+      list.forEach((x, i) => x.setAttribute('aria-selected', String(i === sel)));
+    } else if (e.key === 'Enter' && sel >= 0) { e.preventDefault(); list[sel].dispatchEvent(new MouseEvent('mousedown')); }
+    else if (e.key === 'Escape') close();
+  });
+  if (suggestEl) suggestEl.addEventListener('mousedown', e => {
+    const b = e.target.closest('.s-item'); if (!b) return;
+    e.preventDefault();
+    if (b.dataset.route) { const r = recents.find(x => x.key === b.dataset.route); if (r) { addRecent(r); location.hash = r.key; } }
+    else if (b.dataset.q) { input.value = b.dataset.q; go(b.dataset.q); }
+    close();
+  });
+  if (clearEl) clearEl.onclick = () => { input.value = ''; update(); input.focus(); };
+  form.addEventListener('submit', e => { e.preventDefault(); if (input.value.trim()) { close(); input.blur(); go(input.value); } });
+  update();
+}
+
+function setPlatform(p, silent) {
+  platform = p; store.set('platform', p);
+  const seg = $('#seg'); if (!seg) return;
+  seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.p === p)));
+  movePill();
+  const inp = $('#q');
+  if (inp) {
+    inp.placeholder = p === 'instagram' ? 'Instagram username or link' : 'TikTok username or link';
+    if (!silent) { inp.dispatchEvent(new Event('input')); inp.focus(); }
+  }
+}
+function movePill() {
+  const seg = $('#seg'); if (!seg) return;
+  const b = seg.querySelector('[aria-pressed="true"]'), pill = seg.querySelector('.pill');
+  pill.style.left = b.offsetLeft + 'px'; pill.style.width = b.offsetWidth + 'px';
+}
+addEventListener('resize', movePill);
+
+/* ================= embeds ================= */
+function frameBlock(r, opts) {
+  // Builds an iframe with skeleton + slow-load fallback.
+  const wrap = document.createElement('div');
+  wrap.className = 'frame-wrap ' + (opts.cls || '');
+  wrap.innerHTML = `<div class="skeleton">${opts.skeleton}</div>`;
+  const f = document.createElement('iframe');
+  if (strict) f.setAttribute('credentialless', '');
+  f.setAttribute('referrerpolicy', 'no-referrer');
+  f.setAttribute('loading', 'eager');
+  f.setAttribute('allow', 'autoplay; encrypted-media; fullscreen; picture-in-picture');
+  f.setAttribute('allowfullscreen', '');
+  f.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-presentation');
+  f.title = opts.title;
+  if (opts.height) f.style.height = opts.height + 'px';
+  f.src = embedUrl(r);
+  wrap.appendChild(f);
+  let done = false;
+  const slow = setTimeout(() => {
+    if (done) return;
+    const n = document.createElement('div');
+    n.className = 'notice slow';
+    n.innerHTML = `${I.warn}<div>This is taking longer than usual. A content blocker, a network filter or ${strict ? 'Strict mode' : 'the platform'} may be stopping it. ${strict ? '<button data-act="strict-off">Try without Strict mode</button> · ' : ''}<a href="${esc(originalUrl(r))}" target="_blank" rel="noopener noreferrer">Open on ${P[r.platform].name}</a></div>`;
+    wrap.parentElement && wrap.parentElement.insertBefore(n, wrap);
+  }, 12000);
+  f.addEventListener('load', () => {
+    done = true; clearTimeout(slow);
+    f.classList.add('ready'); wrap.querySelector('.skeleton').classList.add('hide');
+    const s = wrap.parentElement && wrap.parentElement.querySelector('.notice.slow'); if (s) s.remove();
+  });
+  return wrap;
+}
+
+// Instagram embeds report their content height via postMessage; use it to size the frame.
+addEventListener('message', e => {
+  if (!/^https:\/\/(www\.)?instagram\.com$/.test(e.origin)) return;
+  let d = e.data; try { if (typeof d === 'string') d = JSON.parse(d); } catch { return; }
+  if (d && d.type === 'MEASURE' && d.details && d.details.height) {
+    document.querySelectorAll('.frame-wrap iframe').forEach(f => { if (f.contentWindow === e.source) f.style.height = Math.ceil(d.details.height) + 'px'; });
+  }
+});
+
+const SK_PROFILE = `<div class="sk-row"><div class="sk" style="width:64px;height:64px;border-radius:50%"></div><div style="flex:1;display:grid;gap:8px"><div class="sk" style="height:16px;width:40%"></div><div class="sk" style="height:12px;width:70%"></div></div></div><div class="sk" style="height:12px;width:90%"></div><div class="sk-grid"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>`;
+const SK_VIDEO = `<div class="sk" style="width:min(100%,340px);height:min(76vh,604px);margin:0 auto;border-radius:16px"></div>`;
+const SK_POST = `<div class="sk-row"><div class="sk" style="width:36px;height:36px;border-radius:50%"></div><div class="sk" style="height:14px;width:30%"></div></div><div class="sk" style="flex:1;border-radius:8px;min-height:240px"></div><div class="sk" style="height:12px;width:60%"></div>`;
+
+/* ================= feature availability ================= */
+const FEATURES = {
+  instagram: [
+    ['ok', 'Public posts & Reels', 'Paste any public post or Reel link to view it with its caption.'],
+    ['ok', 'Profile, photo, name & counts', 'Profile photo, name, follower and post totals from Instagram\'s official profile embed. Instagram can occasionally show a sign-in prompt instead.'],
+    ['ok', 'Recent posts grid', 'The latest posts appear in the profile embed. Tap one to open it on Instagram, or paste its link below to view it here.'],
+    ['no', 'Follower & following lists', 'Instagram only shows these lists to signed-in users. The totals show in the profile embed when it loads.'],
+    ['no', 'Stories & Highlights', 'Not available through any official public embed.'],
+    ['no', 'Full-size profile photo', 'Official embeds only show the small version. Open the profile on Instagram to see it.'],
+    ['no', 'Private accounts', 'Never shown. GhostView doesn\'t get around privacy settings.']
+  ],
+  tiktok: [
+    ['ok', 'Profile card', 'Profile photo, name, bio, and follower, following and like totals, from TikTok\'s official creator embed.'],
+    ['ok', 'Recent videos', 'The creator embed includes up to 10 recent videos. Hover or scroll to play them.'],
+    ['ok', 'Video player', 'Paste any public video link to play it with its description and sound.'],
+    ['lim', 'Video statistics', 'Profile totals show in the creator card, and the player shows likes, comments and shares. Per-video view counts appear on the recent-video thumbnails only.'],
+    ['no', 'Full video history', 'Official embeds stop at the 10 most recent. Open TikTok for older videos.'],
+    ['no', 'Private & under-18 accounts', 'TikTok blocks embedding them, and GhostView respects that.']
+  ]
+};
+function featurePanel(p) {
+  return `<div class="panel"><div class="panel-h">What's available <span class="muted">${P[p].name}</span></div><ul class="feat">${
+    FEATURES[p].map(([s, t, d]) => `<li><i class="dot ${s}" aria-label="${s === 'ok' ? 'Available' : s === 'lim' ? 'Limited' : 'Unavailable'}"></i><div><b>${t}</b><span>${d}</span></div></li>`).join('')
+  }</ul></div>`;
+}
+
+function openContentPanel(p, user) {
+  const ph = p === 'instagram' ? 'instagram.com/p/… or /reel/…' : `tiktok.com/@${user || 'user'}/video/…`;
+  return `<div class="panel" style="margin-top:18px"><div class="panel-h">Open a specific ${p === 'instagram' ? 'post or Reel' : 'video'}</div>
+    <form class="mini-form" id="miniForm"><input id="miniInput" placeholder="${esc(ph)}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Post link"><button class="btn primary">View</button></form>
+    <div class="mini-err" id="miniErr"></div></div>`;
+}
+function bindMini() {
+  const f = $('#miniForm'); if (!f) return;
+  f.onsubmit = e => {
+    e.preventDefault();
+    const v = $('#miniInput').value, r = parse(v, platform), err = $('#miniErr');
+    if (r.type === 'post' || r.type === 'video') { addRecent(r); location.hash = routeFor(r); }
+    else { err.textContent = r.type === 'error' ? r.title + ' — ' + r.msg : 'Paste a post, Reel or video link here. For profiles, use the search bar.'; err.classList.add('show'); }
+  };
+}
+
+/* ================= TikTok oEmbed (best-effort real metadata) ================= */
+async function ttMeta(url) {
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 5000);
+  try {
+    const res = await fetch('https://www.tiktok.com/oembed?url=' + encodeURIComponent(url), { signal: ctl.signal, credentials: 'omit', referrerPolicy: 'no-referrer' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; } finally { clearTimeout(t); }
+}
+
+/* ================= views ================= */
+const app = $('#app');
+
+function peopleRow() {
+  const ppl = Object.entries(prof).filter(([, v]) => v.seen).sort((a, b) => b[1].seen - a[1].seen).slice(0, 12);
+  if (!ppl.length) return '';
+  return `<section class="section"><div class="section-h"><h2>Recently viewed TikTok profiles</h2><button class="link-btn" id="clearPeople">Clear</button></div>
+    <div class="people">${ppl.map(([u, v]) => `<a class="person" href="#/tiktok/u/${encodeURIComponent(u)}"><div class="avatar tt"><span>${esc(u.charAt(0))}</span></div><b>${esc(v.name || '@' + u)}</b><div>@${esc(u)}</div></a>`).join('')}</div></section>`;
+}
+function viewHome() {
+  setBar(false);
+  const rec = recents.length ? recents.map(x => {
+    const d = describe(x), k = P[x.platform].key;
+    return `<div class="r-row"><a class="main" href="${esc(x.key)}"><span class="badge ${k}">${I[k]}</span><span style="min-width:0"><div class="t">${esc(d.title)}</div><div class="s">${esc(d.sub)}</div></span></a><button class="icon-btn" data-del="${esc(x.key)}" aria-label="Remove ${esc(d.title)} from recent searches">${I.x}</button></div>`;
+  }).join('') : `<div class="empty-note">Profiles and posts you open will show here. They're saved on this device only.</div>`;
+
+  app.innerHTML = `<div class="view">
+    <section class="hero">
+      <div class="ghost"><svg width="40" height="40" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 8C21 8 13 16.2 13 27v27l6-5 6.5 5 6.5-5 6.5 5 6.5-5 6 5V27C51 16.2 43 8 32 8z" fill="#fff"/><circle cx="25" cy="28" r="4" fill="#111"/><circle cx="39" cy="28" r="4" fill="#111"/></svg></div>
+      <h1>GhostView</h1>
+      <p>Browse publicly available social profiles privately.</p>
+    </section>
+    <div style="text-align:center">
+      <div class="seg" id="seg" role="group" aria-label="Platform">
+        <span class="pill"></span>
+        <button data-p="tiktok" aria-pressed="${platform === 'tiktok'}">${I.tt} TikTok</button>
+        <button data-p="instagram" aria-pressed="${platform === 'instagram'}">${I.ig} Instagram</button>
+      </div>
+    </div>
+    <form class="search" id="homeForm" role="search">
+      <div class="field">
+        <span class="lead">${I.search}</span>
+        <input id="q" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"
+          placeholder="${platform === 'instagram' ? 'Instagram username or link' : 'TikTok username or link'}" aria-label="Username or link" aria-autocomplete="list" aria-controls="suggest" aria-expanded="false">
+        <button type="button" class="clear-x" id="qClear" aria-label="Clear">${I.x}</button>
+        <button class="go" type="submit" disabled><span>View</span>${I.arrow}</button>
+      </div>
+      <div class="suggest" id="suggest" role="listbox"></div>
+      <div class="hint" id="hint"></div>
+    </form>
+
+    ${peopleRow()}
+    <section class="section">
+      <div class="section-h"><h2>Search history</h2>${recents.length ? '<button class="link-btn" id="clearHist">Clear history</button>' : ''}</div>
+      <div class="recents">${rec}</div>
+    </section>
+
+    <section class="section">
+      <div class="section-h"><h2>Your data</h2></div>
+      <div class="panel" style="padding:16px 18px">
+        <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Your saved videos, recent profiles and history only exist in this browser. Export them to keep a backup or move them to another device.</p>
+        <div class="actions" style="margin:0">
+          <button class="btn primary" id="expAll">${I.dl} Export backup</button>
+          <button class="btn" id="expCsvAll">${I.dl} Export video list (CSV)</button>
+          <label class="btn" style="cursor:pointer">${I.plus} Import backup<input type="file" id="impFile" accept="application/json,.json" class="sr"></label>
+        </div>
+      </div>
+    </section>
+    <section class="section">
+      <div class="section-h"><h2>Privacy</h2><button class="link-btn" id="moreP">Details</button></div>
+      <div class="privacy">
+        <div class="p-card">${I.user}<h3>No accounts</h3><p>No GhostView sign-up and no social login.</p></div>
+        <div class="p-card">${I.eye}<h3>No interactions</h3><p>Never likes, follows or messages. No notifications sent.</p></div>
+        <div class="p-card">${I.device}<h3>Stays on device</h3><p>No GhostView server. History lives only in this browser.</p></div>
+        <div class="p-card">${I.lock}<h3>Public only</h3><p>Private accounts stay private. No workarounds.</p></div>
+      </div>
+    </section>
+    <p class="foot">Content is provided by Instagram and TikTok through their official embeds. GhostView isn't affiliated with Meta or TikTok. <button id="moreP2">How private is this?</button></p>
+  </div>`;
+
+  $('#seg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setPlatform(b.dataset.p); });
+  requestAnimationFrame(movePill);
+  bindSearch($('#homeForm'), $('#q'), { hintEl: $('#hint'), suggestEl: $('#suggest'), clearEl: $('#qClear') });
+  app.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { removeRecent(b.dataset.del); viewHome(); toast('Removed'); });
+  const ch = $('#clearHist'); if (ch) ch.onclick = () => { recents = []; store.set('recents', []); viewHome(); toast('History cleared'); };
+  $('#moreP').onclick = openSheet; $('#moreP2').onclick = openSheet;
+  $('#expAll').onclick = () => exportJSON();
+  $('#expCsvAll').onclick = () => exportCSV();
+  $('#impFile').onchange = e => { const f = e.target.files[0]; if (f) importJSON(f, viewHome); e.target.value = ''; };
+  const cp = $('#clearPeople'); if (cp) cp.onclick = () => { prof = {}; store.set('prof', {}); viewHome(); toast('Cleared'); };
+  if (matchMedia('(hover:hover)').matches) $('#q').focus({ preventScroll: true });
+}
+
+function headCard(r, title, sub, extraActions = '') {
+  const k = P[r.platform].key;
+  const initial = (r.user || title.replace(/[^a-z0-9]/gi, '')).charAt(0) || '·';
+  return `<div class="head">
+    <div class="avatar ${k}"><span>${esc(initial)}</span></div>
+    <div class="info">
+      <h1 id="hTitle">${esc(title)}</h1>
+      <div class="sub" id="hSub">${sub}</div>
+      <div class="actions">
+        <a class="btn primary" href="${esc(originalUrl(r))}" target="_blank" rel="noopener noreferrer">${I.ext} Open on ${P[r.platform].name}</a>
+        <button class="btn" data-copy="${esc(originalUrl(r))}">${I.copy} Copy link</button>
+        ${extraActions}
+      </div>
+    </div>
+  </div>`;
+}
+
+function crumbs(label, href) {
+  return `<nav class="crumbs"><a class="back" href="${href || '#/'}">${I.back} ${esc(label || 'Search')}</a></nav>`;
+}
+
+function viewProfile(r) {
+  setBar(true);
+  const k = P[r.platform].key;
+  const sub = `<span class="chip ${k}">${I[k]} ${P[r.platform].name}</span>`;
+  const note = r.platform === 'instagram'
+    ? `If Instagram shows a sign-in prompt or a blank card, it isn't serving this profile to logged-out visitors right now. Public posts and Reels still open by link, or <a href="${esc(originalUrl(r))}" target="_blank" rel="noopener noreferrer">open the profile on Instagram</a>.`
+    : `If the card says the account is private or unavailable, TikTok doesn't allow it to be embedded (private, under 18, or doesn't exist). GhostView can't and won't get around that.`;
+
+  app.innerHTML = `<div class="view">
+    ${crumbs('Search')}
+    ${headCard(r, '@' + r.user, sub)}
+    <div class="grid2">
+      <div>
+        <div class="panel" id="embedPanel">
+          <div class="panel-h">${r.platform === 'instagram' ? 'Profile & recent posts' : 'Profile & recent videos'} <span class="muted">Official ${P[r.platform].name} embed</span></div>
+        </div>
+        ${openContentPanel(r.platform, r.user)}
+      </div>
+      <aside>${featurePanel(r.platform)}</aside>
+    </div>
+  </div>`;
+
+  const panel = $('#embedPanel');
+  panel.appendChild(frameBlock(r, { skeleton: SK_PROFILE, title: `${P[r.platform].name} profile @${r.user}`, height: r.platform === 'instagram' ? 600 : 480 }));
+  const n = document.createElement('div'); n.className = 'notice'; n.innerHTML = I.info + '<div>' + note + '</div>'; panel.appendChild(n);
+  bindCommon(); bindMini();
+
+  if (r.platform === 'tiktok') ttMeta(originalUrl(r)).then(m => {
+    if (m && m.author_name && location.hash === routeFor(r)) {
+      $('#hTitle').textContent = m.author_name;
+      $('#hSub').innerHTML = `@${esc(r.user)} &nbsp;${sub}`;
+    }
+  });
+}
+
+function viewContent(r) {
+  setBar(true);
+  const k = P[r.platform].key;
+  const isVid = r.platform === 'tiktok';
+  const d = describe(r);
+  const backTo = r.user ? `#/${r.platform}/u/${encodeURIComponent(r.user)}` : '#/';
+  const extra = r.user ? `<a class="btn" href="${backTo}">${I.user.replace('width="22" height="22"', 'width="15" height="15"')} View @${esc(r.user)}</a>` : '';
+  const sub = `<span class="chip ${k}">${I[k]} ${d.sub}</span>`;
+
+  app.innerHTML = `<div class="view">
+    ${crumbs(r.user ? '@' + r.user : 'Search', backTo)}
+    ${headCard(r, isVid ? (r.user ? '@' + r.user : 'TikTok video') : (r.kind === 'reel' ? 'Reel' : 'Post'), sub, extra)}
+    <div class="grid2">
+      <div class="panel" id="embedPanel"><div class="panel-h">${isVid ? 'Video' : r.kind === 'reel' ? 'Reel' : 'Post'} <span class="muted">Official ${P[r.platform].name} ${isVid ? 'player' : 'embed'}</span></div></div>
+      <aside>
+        <div class="panel"><div class="panel-h">About this view</div><ul class="feat">
+          ${isVid
+            ? `<li><i class="dot ok"></i><div><b>Playback</b><span>Plays through TikTok's official player, with its description and sound.</span></div></li>
+               <li><i class="dot lim"></i><div><b>Stats & comments</b><span id="statLine">The player shows like, comment and share counts. Reading the comments themselves needs TikTok.</span></div></li>`
+            : `<li><i class="dot ok"></i><div><b>Media & caption</b><span>Shown through Instagram's official embed. Carousels and Reels play inside it.</span></div></li>
+               <li><i class="dot lim"></i><div><b>Comments & likes</b><span>Instagram's embed only shows a summary. Open on Instagram for the full thread.</span></div></li>`}
+          <li><i class="dot no"></i><div><b>Downloads</b><span>Not offered. Content stays on ${P[r.platform].name}, and creators keep control of it.</span></div></li>
+        </ul></div>
+        ${openContentPanel(r.platform, r.user)}
+      </aside>
+    </div>
+  </div>`;
+
+  const panel = $('#embedPanel');
+  panel.appendChild(frameBlock(r, isVid
+    ? { cls: 'video', skeleton: SK_VIDEO, title: 'TikTok video' }
+    : { cls: 'ig-post', skeleton: SK_POST, title: 'Instagram ' + r.kind, height: 680 }));
+  const n = document.createElement('div'); n.className = 'notice';
+  n.innerHTML = I.info + `<div>${isVid
+    ? 'If the player says the video is unavailable, it was removed, made private or restricted by TikTok.'
+    : 'If you see "content unavailable", the post was removed, the account is private, or the owner turned off embedding.'}</div>`;
+  panel.appendChild(n);
+  bindCommon(); bindMini();
+
+  if (isVid && r.user) ttMeta(originalUrl(r)).then(m => {
+    if (!m || location.hash !== routeFor(r)) return;
+    if (m.author_name) $('#hTitle').textContent = m.author_name;
+    if (m.title) $('#hSub').innerHTML = `${esc(m.title).slice(0, 220)} &nbsp;${sub}`;
+  });
+}
+
+function showError(r) {
+  setBar(location.hash.length > 2);
+  app.innerHTML = `<div class="view state">
+    <div class="ico">${r.url ? I.link : I.warn}</div>
+    <h2>${esc(r.title)}</h2>
+    <p>${esc(r.msg)}</p>
+    <div class="actions">
+      <button class="btn primary" id="errBack">Try another search</button>
+      ${r.url ? `<a class="btn" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${I.ext} Open original</a>` : ''}
+    </div>
+  </div>`;
+  $('#errBack').onclick = () => { if (location.hash && location.hash !== '#/') location.hash = '#/'; else viewHome(); };
+}
+
+function notFound() {
+  showError({ title: 'Page not found', msg: 'That address doesn\'t match anything in GhostView.' });
+}
+
+function bindCommon() {
+  app.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => copy(b.dataset.copy));
+}
+app.addEventListener('click', e => {
+  const b = e.target.closest('[data-act="strict-off"]'); if (!b) return;
+  strict = false; store.set('strict', false); sw.setAttribute('aria-checked', 'false'); toast('Strict mode off'); render();
+});
+
+/* ================= TikTok: icons ================= */
+Object.assign(I, {
+  dl: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+  play: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>',
+  pause: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>',
+  prev: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 6.2v11.6a.8.8 0 0 1-1.2.7L10 13a1.2 1.2 0 0 1 0-2l8.8-5.5a.8.8 0 0 1 1.2.7z"/></svg>',
+  next: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 6.2v11.6a.8.8 0 0 0 1.2.7L14 13a1.2 1.2 0 0 0 0-2L5.2 5.5A.8.8 0 0 0 4 6.2z"/></svg>',
+  vol: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>',
+  mute: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>',
+  full: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+  story: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-dasharray="4 3"/><circle cx="12" cy="12" r="4"/></svg>',
+  pin: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 6 3 3H7l3-3-1-6zM12 13v7"/></svg>',
+  users: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.5.8 2.5 2.6 3 5.2"/></svg>',
+  plus: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+  shield: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/></svg>'
+});
+
+/* ================= TikTok: local library & profile cache ================= */
+// Library = videos the viewer opened or added in GhostView, grouped by creator. Stored only in this browser.
+let lib = store.get('lib', {});
+let prof = store.get('prof', {});
+const libKey = u => u || '_';
+function libList(u) { return (lib[libKey(u)] || []).slice(); }
+function libAdd(u, id) {
+  const k = libKey(u), list = lib[k] || [];
+  if (list.some(v => v.id === id)) return false;
+  lib[k] = [{ id, t: Date.now() }, ...list].slice(0, 200); store.set('lib', lib); return true;
+}
+function libRemove(u, id) { const k = libKey(u); lib[k] = (lib[k] || []).filter(v => v.id !== id); if (!lib[k].length) delete lib[k]; store.set('lib', lib); }
+function profSet(u, data) { prof[u] = { ...(prof[u] || {}), ...data, seen: Date.now() }; store.set('prof', prof); }
+const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? m + 'm ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago'; };
+
+// oEmbed is the only TikTok data a web page is allowed to read directly. Cache per session.
+const metaCache = {};
+function ttProfileMeta(user) {
+  if (!metaCache[user]) metaCache[user] = ttMeta('https://www.tiktok.com/@' + user).then(m => {
+    if (m && m.author_name) profSet(user, { name: m.author_name, confirmed: true });
+    return m;
+  });
+  return metaCache[user];
+}
+
+/* ================= TikTok: profile dashboard ================= */
+const TT_TABS = [
+  ['videos', 'Videos'], ['stories', 'Stories'], ['pinned', 'Pinned'], ['followers', 'Followers'], ['following', 'Following'], ['about', 'About']
+];
+const LOCKED = new Set(['stories', 'pinned', 'followers', 'following']);
+
+function viewTikTokProfile(user, tab) {
+  setBar(true);
+  tab = TT_TABS.some(t => t[0] === tab) ? tab : 'videos';
+  const cached = prof[user] || {};
+  const name = cached.name || '@' + user;
+  const profUrl = 'https://www.tiktok.com/@' + user;
+  const count = libList(user).length;
+
+  app.innerHTML = `<div class="view">
+    ${crumbs('Search')}
+    <section class="tt-head">
+      <div class="tt-top">
+        <div class="avatar tt"><span>${esc(user.charAt(0))}</span></div>
+        <div class="info" style="flex:1;min-width:0">
+          <h1 id="ttName">${esc(name)}</h1>
+          <div class="handle"><span>@${esc(user)}</span><span id="ttStatus" class="status"><i></i>Checking with TikTok…</span></div>
+          <div class="actions">
+            <button class="btn" data-copy="${esc(profUrl)}">${I.copy} Copy link</button>
+            <a class="btn" href="${esc(profUrl)}" target="_blank" rel="noopener noreferrer" title="Fallback: opens TikTok">${I.ext} TikTok</a>
+          </div>
+        </div>
+      </div>
+      <div class="card-frame" id="cardFrame"><div class="skeleton">${SK_PROFILE}</div></div>
+      <div class="card-note">${I.info}<span>Profile photo, verified badge, bio, follower, following and like totals, and the 10 latest videos come live from TikTok's official profile card. GhostView can't read inside the card, so these numbers only appear here, not elsewhere in the app.</span></div>
+    </section>
+
+    <nav class="tabs" role="tablist" aria-label="Profile sections">
+      ${TT_TABS.map(([k, l]) => `<a class="tab" role="tab" href="#/tiktok/u/${encodeURIComponent(user)}/${k}" aria-selected="${k === tab}">${l}${k === 'videos' && count ? `<span class="n">${count}</span>` : ''}${LOCKED.has(k) ? '<i class="lockdot" title="Not available from TikTok"></i>' : ''}</a>`).join('')}
+    </nav>
+    <div class="tab-body" id="tabBody"></div>
+  </div>`;
+
+  // Official creator card (only legitimate public source of avatar, bio and stats)
+  const cf = $('#cardFrame');
+  const f = document.createElement('iframe');
+  if (strict) f.setAttribute('credentialless', '');
+  f.setAttribute('referrerpolicy', 'no-referrer');
+  f.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox');
+  f.title = `TikTok profile card for @${user}`;
+  f.src = `https://www.tiktok.com/embed/@${encodeURIComponent(user)}`;
+  f.dataset.ttcard = '1';
+  cf.appendChild(f);
+  const slow = setTimeout(() => { if (!f.classList.contains('ready')) cardFail(cf, user); }, 14000);
+  f.onload = () => { clearTimeout(slow); f.classList.add('ready'); cf.querySelector('.skeleton').classList.add('hide'); };
+
+  ttProfileMeta(user).then(m => {
+    if (location.hash.indexOf('#/tiktok/u/' + user) !== 0) return;
+    const st = $('#ttStatus');
+    if (m && m.author_name) {
+      $('#ttName').textContent = m.author_name;
+      st.className = 'status ok'; st.innerHTML = '<i></i>Public profile';
+    } else {
+      st.className = 'status warn'; st.innerHTML = '<i></i>Not confirmed by TikTok';
+      st.title = 'TikTok didn\'t return this profile. It may be private, under 18, renamed, or not exist, or your network blocked the check.';
+    }
+  });
+
+  renderTab(user, tab);
+  bindCommon();
+}
+
+function cardFail(cf, user) {
+  cf.style.background = 'var(--bg2)';
+  cf.innerHTML = `<div class="state" style="margin:0;padding:34px 20px"><div class="ico">${I.warn}</div><h2 style="font-size:19px">TikTok's profile card didn't load</h2>
+    <p style="font-size:14px">A content blocker, a network filter${strict ? ' or Strict mode' : ''} may be stopping it.</p>
+    <div class="actions">${strict ? '<button class="btn primary" data-act="strict-off">Try without Strict mode</button>' : ''}<a class="btn" href="https://www.tiktok.com/@${esc(user)}" target="_blank" rel="noopener noreferrer">${I.ext} Open on TikTok</a></div></div>`;
+}
+
+// The creator card reports its content height; size the frame to fit.
+addEventListener('message', e => {
+  if (e.origin !== 'https://www.tiktok.com') return;
+  let d = e.data; try { if (typeof d === 'string') d = JSON.parse(d); } catch { return; }
+  if (d && typeof d.height === 'number' && d.height > 100) {
+    document.querySelectorAll('iframe[data-ttcard]').forEach(f => { if (f.contentWindow === e.source) f.style.height = Math.ceil(d.height) + 'px'; });
+  }
+});
+
+function unavailable(icon, title, lede, reasons, user, extra = '') {
+  return `<section class="unavail"><div class="ico">${icon}</div><h2>${title}</h2><p>${lede}</p>
+    <div class="why">${reasons.map(r => `<div>${I.info}<span>${r}</span></div>`).join('')}</div>
+    <div class="actions">${extra}</div></section>`;
+}
+
+function renderTab(user, tab) {
+  const body = $('#tabBody');
+  const linkOut = (label, note) => `<a class="btn" href="https://www.tiktok.com/@${esc(user)}" target="_blank" rel="noopener noreferrer">${I.ext} ${label}</a>${note ? `<p style="width:100%;font-size:12px;color:var(--text3);margin-top:6px">${note}</p>` : ''}`;
+
+  if (tab === 'videos') { renderLibrary(body, user); return; }
+
+  if (tab === 'stories') {
+    body.innerHTML = unavailable(I.story, 'Stories can\'t be shown',
+      'TikTok doesn\'t make Stories available to anyone outside its app, so GhostView shows none. Nothing here is simulated.',
+      ['<b>Sign-in only.</b> TikTok Stories can only be watched by signed-in users inside TikTok.',
+       '<b>Never anonymous.</b> TikTok shows creators who viewed their Story. Any way of watching them is tied to an account the creator can see.',
+       '<b>No public source.</b> No official embed or public API includes Stories. Getting them would mean signing in to an account and using TikTok\'s private app API, which GhostView won\'t do.'],
+      user, linkOut('Open profile on TikTok', 'If you watch a Story there while signed in, the creator can see that you viewed it.'));
+    return;
+  }
+  if (tab === 'pinned') {
+    body.innerHTML = unavailable(I.pin, 'Pinned videos aren\'t marked',
+      'TikTok has no Highlights feature, and its embeds don\'t say which videos are pinned. GhostView won\'t guess, so nothing gets labeled as pinned.',
+      ['<b>Pinned status isn\'t shared.</b> The official profile card and oEmbed data don\'t include it.',
+       '<b>Where to look.</b> Pinned videos usually appear first in the 10 latest videos in the profile card above. That\'s TikTok\'s ordering, not something GhostView can confirm.',
+       '<b>Collections and playlists</b> aren\'t available through any official embed.'],
+      user, `<a class="btn primary" href="#/tiktok/u/${encodeURIComponent(user)}/videos">Go to Videos</a>`);
+    return;
+  }
+  if (tab === 'followers' || tab === 'following') {
+    const which = tab === 'followers' ? 'Follower' : 'Following';
+    body.innerHTML = unavailable(I.users, `${which} list isn't available`,
+      `The ${tab === 'followers' ? 'follower' : 'following'} total is in the profile card above. The list of accounts isn't something TikTok makes public.`,
+      ['<b>Sign-in only.</b> TikTok only shows follower and following lists to signed-in users, and creators can hide them completely.',
+       '<b>No public source.</b> No official embed or public API returns these lists. TikTok\'s Research API is limited to approved academic researchers.',
+       '<b>No workarounds.</b> GhostView doesn\'t scrape signed-in pages or get around privacy settings, so it shows no list instead of an incomplete or made-up one.'],
+      user, '');
+    return;
+  }
+  if (tab === 'about') {
+    const p = prof[user] || {};
+    const list = libList(user);
+    body.innerHTML = `<div class="grid2" style="margin-top:0"><div class="panel"><div class="panel-h">Account information <span class="muted">Only real data</span></div><ul class="kv">
+      <li><span>Display name</span><span id="abName">${esc(p.name || 'Checking…')}<span class="src">From TikTok oEmbed</span></span></li>
+      <li><span>Username</span><span>@${esc(user)}</span></li>
+      <li><span>Profile link</span><span>tiktok.com/@${esc(user)}</span></li>
+      <li><span>Status</span><span id="abStatus">Checking…</span></li>
+      <li><span>Photo, bio, verified</span><span>Shown in TikTok's profile card<span class="src">Official creator embed</span></span></li>
+      <li><span>Followers · Following · Likes</span><span>Shown in TikTok's profile card<span class="src">Official creator embed</span></span></li>
+      <li><span>Total video count</span><span>Not available<span class="src">TikTok's public embeds don't include it</span></span></li>
+      <li><span>Full-size profile photo</span><span>Not available<span class="src">The embed only has the small version, inside TikTok's card</span></span></li>
+      <li><span>In your GhostView library</span><span>${list.length} video${list.length === 1 ? '' : 's'}${p.seen ? `<span class="src">Last viewed ${ago(p.seen)}</span>` : ''}</span></li>
+    </ul></div>
+    <aside class="panel"><div class="panel-h">Where this comes from</div><ul class="feat">
+      <li><i class="dot ok"></i><div><b>TikTok oEmbed</b><span>Display name and whether the profile is public. This is the only TikTok data GhostView reads directly.</span></div></li>
+      <li><i class="dot ok"></i><div><b>Official profile card</b><span>Photo, bio, stats and recent videos, shown by TikTok inside GhostView.</span></div></li>
+      <li><i class="dot ok"></i><div><b>Official player</b><span>Playback, description, hashtags, sound, and like, comment and share counts.</span></div></li>
+      <li><i class="dot no"></i><div><b>Everything else</b><span>Stories, lists and pinned status need TikTok sign-in, so they're left out.</span></div></li>
+    </ul></aside></div>`;
+    ttProfileMeta(user).then(m => {
+      const n = $('#abName'), s = $('#abStatus'); if (!n) return;
+      n.innerHTML = (m && m.author_name ? esc(m.author_name) : 'Not returned') + '<span class="src">From TikTok oEmbed</span>';
+      s.innerHTML = m && m.author_name ? 'Public. TikTok confirmed this profile can be embedded.' : 'Not confirmed. It may be private, under 18, renamed or nonexistent, or the check was blocked.';
+    });
+  }
+}
+
+
+function renderLibrary(body, user) {
+  const list = libList(user);
+  body.innerHTML = `<div class="panel">
+    <div class="panel-h">Watch in GhostView <span class="muted">${list.length ? list.length + ' saved on this device' : 'Saved on this device only'}</span></div>
+    <form class="lib-add" id="libAdd">
+      <label for="libLinks" style="font-size:13px;color:var(--text2)">Paste one or more @${esc(user)} video links. They play right here, with next and previous.</label>
+      <textarea id="libLinks" placeholder="https://www.tiktok.com/@${esc(user)}/video/…&#10;https://www.tiktok.com/@${esc(user)}/video/…" autocapitalize="off" spellcheck="false"></textarea>
+      <div class="row"><button class="btn primary">${I.plus} Add videos</button><span class="msg" id="libMsg"></span></div>
+    </form>
+    ${list.length ? `<div class="lib-tools"><button class="btn primary" id="playAll">${I.play.replace('width="20" height="20"', 'width="15" height="15"')} Play all</button>
+      <button class="btn" id="expCsv">${I.dl} Export list</button><span class="grow"></span>
+      <input class="search-in" id="libSearch" placeholder="Filter by video number" inputmode="numeric" aria-label="Filter saved videos"></div>
+      <div class="lib-grid" id="libGrid"></div>`
+    : `<div class="empty-note" style="padding:28px">No videos saved for @${esc(user)} yet.<br>To watch one in GhostView, copy its link (Share → Copy link) and paste it above. TikTok's profile card above previews the 10 latest when you hover or scroll. Tapping a video in that card opens it on TikTok.</div>`}
+  </div>`;
+
+  const draw = (q = '') => {
+    const g = $('#libGrid'); if (!g) return;
+    const items = list.filter(v => !q || v.id.includes(q));
+    g.innerHTML = items.length ? items.map((v, i) => `<div class="vcard">
+        <div class="art" style="--h:${parseInt(v.id.slice(-4), 10) % 360}"></div><span class="big">${list.indexOf(v) + 1}</span>
+        <a class="hit" href="#/tiktok/v/${v.id}/${encodeURIComponent(user)}" aria-label="Play video ${list.indexOf(v) + 1}"><span class="play">${I.play}</span><b>Video ${list.indexOf(v) + 1}</b><small>…${v.id.slice(-6)} · added ${ago(v.t)}</small></a>
+        <button class="rm" data-rm="${v.id}" aria-label="Remove from library">${I.trash}</button></div>`).join('')
+      : '<div class="empty-note" style="grid-column:1/-1">No saved video matches that number.</div>';
+    g.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { libRemove(user, b.dataset.rm); toast('Removed'); renderLibrary(body, user); updateCount(user); });
+  };
+  draw();
+  const ls = $('#libSearch'); if (ls) ls.oninput = () => draw(ls.value.replace(/\D/g, ''));
+  const ec = $('#expCsv'); if (ec) ec.onclick = () => exportCSV(user);
+  const pa = $('#playAll'); if (pa) pa.onclick = () => { location.hash = `#/tiktok/v/${list[0].id}/${encodeURIComponent(user)}`; };
+
+  $('#libAdd').onsubmit = e => {
+    e.preventDefault();
+    const raw = $('#libLinks').value.split(/[\s,]+/).filter(Boolean);
+    let added = 0, dup = 0, other = 0, bad = 0, short = 0;
+    raw.forEach(x => {
+      const r = parse(x, 'tiktok');
+      if (r.type === 'video') {
+        if (r.user && r.user !== user) { libAdd(r.user, r.id); other++; return; }
+        libAdd(user, r.id) ? added++ : dup++;
+      } else if (r.type === 'error' && /Short links/.test(r.title)) short++;
+      else bad++;
+    });
+    const parts = [];
+    if (added) parts.push(`Added ${added}`);
+    if (dup) parts.push(`${dup} already saved`);
+    if (other) parts.push(`${other} saved to other creators`);
+    if (short) parts.push(`${short} short link${short > 1 ? 's' : ''} need the full address`);
+    if (bad) parts.push(`${bad} not a TikTok video link`);
+    if (!raw.length) parts.push('Paste at least one link');
+    if (added) { renderLibrary(body, user); updateCount(user); }
+    const m = $('#libMsg'); if (m) m.textContent = parts.join(' · ');
+    if (added) toast(`Added ${added} video${added > 1 ? 's' : ''}`);
+  };
+}
+function updateCount(user) {
+  const t = document.querySelector('.tab[href$="/videos"]'); if (!t) return;
+  const n = libList(user).length;
+  t.innerHTML = 'Videos' + (n ? `<span class="n">${n}</span>` : '');
+}
+
+
+/* ================= export / import (this device's GhostView data) ================= */
+function downloadFile(name, text, type) {
+  try {
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const a = Object.assign(document.createElement('a'), { href: url, download: name });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    toast('Exported ' + name);
+  } catch { toast('Your browser blocked the download'); }
+}
+const stamp = () => new Date().toISOString().slice(0, 10);
+function exportJSON(user) {
+  const data = user
+    ? { app: 'GhostView', version: 1, exported: new Date().toISOString(), lib: { [user]: lib[user] || [] }, prof: prof[user] ? { [user]: prof[user] } : {} }
+    : { app: 'GhostView', version: 1, exported: new Date().toISOString(), lib, prof, recents };
+  downloadFile(`ghostview-${user ? user + '-' : ''}${stamp()}.json`, JSON.stringify(data, null, 2), 'application/json');
+}
+function exportCSV(user) {
+  const rows = [['creator', 'video_link', 'added']];
+  Object.entries(lib).forEach(([u, list]) => {
+    if (user && u !== user) return;
+    list.forEach(v => rows.push([u === '_' ? '' : '@' + u, u === '_' ? `https://www.tiktok.com/player/v1/${v.id}` : `https://www.tiktok.com/@${u}/video/${v.id}`, new Date(v.t).toISOString()]));
+  });
+  if (rows.length === 1) { toast('No saved videos to export yet'); return; }
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  downloadFile(`ghostview-videos-${user ? user + '-' : ''}${stamp()}.csv`, csv, 'text/csv');
+}
+function importJSON(file, done) {
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const d = JSON.parse(rd.result);
+      if (!d || d.app !== 'GhostView' || typeof d.lib !== 'object') throw 0;
+      let added = 0;
+      Object.entries(d.lib).forEach(([u, list]) => {
+        if (u !== '_' && !RX.ttUser.test(u)) return;
+        (Array.isArray(list) ? list : []).forEach(v => { if (v && RX.ttId.test(String(v.id)) && libAdd(u === '_' ? null : u, String(v.id))) added++; });
+      });
+      Object.entries(d.prof || {}).forEach(([u, v]) => { if (RX.ttUser.test(u) && v && typeof v === 'object') profSet(u, { name: typeof v.name === 'string' ? v.name.slice(0, 80) : undefined }); });
+      toast(added ? `Imported ${added} video${added > 1 ? 's' : ''}` : 'Nothing new to import');
+      done && done();
+    } catch { toast('That isn\'t a GhostView export file'); }
+  };
+  rd.readAsText(file);
+}
+
+/* ================= TikTok: theater player ================= */
+let player = null;
+let curProfile = null; // { frame, ready, playing, muted }
+let autoNext = store.get('autonext', true);
+
+async function openVideo(id, user) {
+  let live = null;
+  if (user && !forceEmbed.has(user) && await apiAvailable()) {
+    setBar(true);
+    app.innerHTML = `<div class="view"><div class="theater" style="margin-top:56px"><div class="stage"><div class="sk skel"></div></div></div></div>`;
+    const d = await getLive(user);
+    if (location.hash.indexOf('#/tiktok/v/' + id) !== 0) return;
+    if (d.status === 200 && !d.profile.private) live = d;
+  }
+  viewTikTokVideo(id, user, live);
+}
+
+function viewTikTokVideo(id, user, live) {
+  setBar(true);
+  const liveVids = live ? live.videos : [];
+  const meta = liveVids.find(v => v.id === id) || null;
+  if (!meta) libAdd(user, id);
+  const extras = libList(user).filter(x => !liveVids.some(v => v.id === x.id));
+  const queue = [...liveVids.map(v => ({ id: v.id, live: v })), ...extras];
+  let idx = queue.findIndex(v => v.id === id);
+  const prevId = idx > 0 ? queue[idx - 1].id : null;
+  const nextId = idx >= 0 && idx < queue.length - 1 ? queue[idx + 1].id : null;
+  const base = id => `#/tiktok/v/${id}${user ? '/' + encodeURIComponent(user) : ''}`;
+  const origin = user ? `https://www.tiktok.com/@${user}/video/${id}` : `https://www.tiktok.com/player/v1/${id}`;
+  const name = user ? (prof[user] && prof[user].name) || '@' + user : 'TikTok video';
+
+  app.innerHTML = `<div class="view">
+    ${crumbs(user ? '@' + user : 'Search', user ? `#/tiktok/u/${encodeURIComponent(user)}/videos` : '#/')}
+    <div class="grid2" style="grid-template-columns:minmax(0,1fr) 320px;margin-top:6px">
+      <div>
+        <div class="theater" id="theater">
+          <div class="stage">
+            <div class="sk skel" id="vSkel"></div>
+            <iframe id="vFrame" title="TikTok video" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen
+              referrerpolicy="no-referrer" ${strict ? 'credentialless' : ''} sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-presentation"
+              src="https://www.tiktok.com/player/v1/${id}?music_info=1&description=1&rel=0&autoplay=1"></iframe>
+            <div class="vid-err" id="vErr"></div>
+          </div>
+          <div class="controls">
+            <button class="ctl" id="cPrev" aria-label="Previous video" ${prevId ? '' : 'disabled'}>${I.prev}</button>
+            <button class="ctl big" id="cPlay" aria-label="Play or pause" disabled title="Waiting for TikTok's player…">${I.play}</button>
+            <button class="ctl" id="cNext" aria-label="Next video" ${nextId ? '' : 'disabled'}>${I.next}</button>
+            <span class="counter">${idx + 1} / ${queue.length}</span>
+            <button class="ctl" id="cMute" aria-label="Mute or unmute" disabled>${I.vol}</button>
+            <button class="ctl" id="cFull" aria-label="Full screen">${I.full}</button>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--text3);margin-top:10px;text-align:center">Description, hashtags, sound, and like, comment and share counts appear in TikTok's player. Keys: <span class="kbd">Space</span> play · <span class="kbd">←</span><span class="kbd">→</span> prev/next · <span class="kbd">M</span> mute · <span class="kbd">F</span> full screen</p>
+      </div>
+      <aside>
+        <div class="panel">
+          <div class="panel-h"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${user ? `<a href="#/tiktok/u/${encodeURIComponent(user)}">${esc(name)}</a>` : 'TikTok video'}</span><span class="muted">Up next</span></div>
+          <ul class="queue">${queue.map((v, i) => `<li class="${v.id === id ? 'cur' : ''}"><button data-go="${v.id}"><span class="num">${i + 1}</span><span style="min-width:0">${v.live
+              ? `<span style="display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden">${v.id === id ? 'Now playing · ' : ''}${esc(v.live.desc || 'Video ' + (i + 1))}</span><small>${v.live.pinned ? 'Pinned · ' : ''}${fmt(v.live.plays)} views · ${fmtDate(v.live.createdAt)}</small>`
+              : `${v.id === id ? 'Now playing' : 'Video ' + (i + 1)}<small>Added by link · ${ago(v.t)}</small>`}</span></button></li>`).join('')}</ul>
+          <div class="opt"><span class="grow">Autoplay next</span><button class="switch" id="autoSw" role="switch" aria-checked="${autoNext}" aria-label="Autoplay next"></button></div>
+        </div>
+        <div class="panel" style="margin-top:18px"><div class="panel-h">This video${meta && meta.pinned ? `<span class="pinb" style="position:static">${PIN_SM} Pinned</span>` : ''}</div>
+          ${meta ? `${meta.desc ? `<div class="vinfo" id="vDesc">${linkify(meta.desc)}</div>` : ''}<div class="vmeta"><span class="status">${EYE_SM} ${fmtFull(meta.plays)} views</span>${meta.createdAt ? `<span class="status">${fmtDate(meta.createdAt)}</span>` : ''}</div>` : ''}
+          <div class="actions" style="padding:14px 18px;margin:0">
+            ${user ? `<a class="btn" href="#/tiktok/u/${encodeURIComponent(user)}">${I.user.replace('width="22" height="22"', 'width="15" height="15"')} Profile</a>` : ''}
+            <button class="btn" data-copy="${esc(origin)}">${I.copy} Copy link</button>
+            ${meta ? '' : `<button class="btn" id="vRemove">${I.trash} Remove</button>`}
+          </div>
+          <div style="padding:0 18px 16px">
+            ${user
+              ? `<a class="btn primary" style="width:100%;justify-content:center" href="${esc(origin)}" target="_blank" rel="noopener noreferrer">${I.dl} Download on TikTok</a>
+                 <p style="font-size:12px;color:var(--text3);margin-top:8px">Opens this video on TikTok. Tap <b>Share → Save video</b>. That option only shows up if the creator allows downloads, and on some videos TikTok adds its watermark.</p>`
+              : `<button class="btn" style="width:100%;justify-content:center" disabled>${I.dl} Download on TikTok</button>
+                 <p style="font-size:12px;color:var(--text3);margin-top:8px">Needs the full video link (tiktok.com/@user/video/…) to open the right page. Paste the full link to turn this on.</p>`}
+          </div>
+          <div class="notice" style="border-top:1px solid var(--line)">${I.shield}<div>Watching here never likes, follows or comments. Pinned status and view counts aren't included in TikTok's player.</div></div>
+        </div>
+        ${openContentPanel('tiktok', user)}
+      </aside>
+    </div>
+  </div>`;
+
+  const frame = $('#vFrame');
+  player = { frame, ready: false, playing: false, muted: false, id, prevId, nextId, user };
+  const skel = $('#vSkel');
+  frame.onload = () => { frame.classList.add('ready'); skel.style.display = 'none'; };
+  const go = to => { if (to) location.hash = base(to); };
+  $('#cPrev').onclick = () => go(prevId);
+  $('#cNext').onclick = () => go(nextId);
+  $('#cPlay').onclick = () => send(player.playing ? 'pause' : 'play');
+  $('#cMute').onclick = () => send(player.muted ? 'unMute' : 'mute');
+  $('#cFull').onclick = toggleFull;
+  $('#autoSw').onclick = () => { autoNext = !autoNext; store.set('autonext', autoNext); $('#autoSw').setAttribute('aria-checked', String(autoNext)); };
+  const vd = $('#vDesc'); if (vd) vd.addEventListener('click', e => { const t = e.target.closest('[data-tag]'); if (t && user) { liveFilter.tag = t.dataset.tag; location.hash = `#/tiktok/u/${encodeURIComponent(user)}/videos`; } });
+  if ($('#vRemove')) $('#vRemove').onclick = () => { libRemove(user, id); toast('Removed from library'); location.hash = nextId ? base(nextId) : prevId ? base(prevId) : (user ? `#/tiktok/u/${encodeURIComponent(user)}/videos` : '#/'); };
+  app.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
+  bindCommon(); bindMini();
+}
+
+function send(type, value) {
+  if (!player || !player.frame.contentWindow) return;
+  player.frame.contentWindow.postMessage({ type, value, 'x-tiktok-player': true }, 'https://www.tiktok.com');
+}
+function toggleFull() {
+  const t = $('#theater'); if (!t) return;
+  try { document.fullscreenElement ? document.exitFullscreen() : (t.requestFullscreen ? t.requestFullscreen() : t.webkitRequestFullscreen && t.webkitRequestFullscreen()); }
+  catch { toast('Full screen isn\'t allowed here'); }
+}
+function setPlayUI() {
+  const p = $('#cPlay'), m = $('#cMute'); if (!p || !player) return;
+  p.disabled = !player.ready; m.disabled = !player.ready;
+  p.title = player.ready ? '' : 'Waiting for TikTok\'s player…';
+  p.innerHTML = player.playing ? I.pause : I.play;
+  m.innerHTML = player.muted ? I.mute : I.vol;
+}
+function videoError(code, type) {
+  const e = $('#vErr'); if (!e || !player) return;
+  const msg = {
+    1001: ['Video unavailable', 'This video doesn\'t exist, was removed, or isn\'t public. TikTok won\'t play it, and GhostView doesn\'t get around that.'],
+    2001: ['TikTok had a problem', 'TikTok\'s servers didn\'t deliver this video. Try again in a moment.'],
+    3001: ['Playback failed', 'Your browser couldn\'t play this video\'s format.']
+  }[code];
+  if (code === 3002) { toast('Autoplay was blocked. Press play.'); return; }
+  const [t, p] = msg || ['Can\'t play this video', `TikTok reported an error (${esc(type || code)}).`];
+  e.innerHTML = `<div class="ico" style="width:56px;height:56px;border-radius:18px;display:grid;place-items:center;background:rgba(255,255,255,.1)">${I.warn}</div><h2 style="font-size:20px">${t}</h2><p>${p}</p>
+    <div class="actions">${player.nextId ? `<a class="btn" href="#/tiktok/v/${player.nextId}${player.user ? '/' + encodeURIComponent(player.user) : ''}">Next video</a>` : ''}<button class="btn" id="errRm">${I.trash} Remove from library</button></div>`;
+  e.classList.add('show');
+  const er = $('#errRm'); if (er) { if ($('#vRemove')) er.onclick = () => $('#vRemove').click(); else er.remove(); }
+}
+
+addEventListener('message', e => {
+  if (e.origin !== 'https://www.tiktok.com' || !player || e.source !== player.frame.contentWindow) return;
+  let d = e.data; try { if (typeof d === 'string') d = JSON.parse(d); } catch { return; }
+  if (!d || !d['x-tiktok-player']) return;
+  switch (d.type) {
+    case 'onPlayerReady': player.ready = true; setPlayUI(); break;
+    case 'onStateChange':
+      player.ready = true;
+      player.playing = d.value === 1 || d.value === 3;
+      if (d.value === 0 && autoNext && player.nextId) location.hash = `#/tiktok/v/${player.nextId}${player.user ? '/' + encodeURIComponent(player.user) : ''}`;
+      setPlayUI(); break;
+    case 'onMute': player.ready = true; player.muted = !!d.value; setPlayUI(); break;
+    case 'onPlayerError': videoError(d.value && d.value.errorCode, d.value && d.value.errorType); break;
+  }
+});
+
+addEventListener('keydown', e => {
+  if (!player || !$('#theater') || /input|textarea/i.test(document.activeElement.tagName)) return;
+  if (e.key === ' ' && player.ready) { e.preventDefault(); $('#cPlay').click(); }
+  else if (e.key === 'ArrowRight' && player.nextId) $('#cNext').click();
+  else if (e.key === 'ArrowLeft' && player.prevId) $('#cPrev').click();
+  else if (e.key.toLowerCase() === 'm' && player.ready) $('#cMute').click();
+  else if (e.key.toLowerCase() === 'f') toggleFull();
+});
+
+
+/* ================= TikTok LIVE mode (GhostView backend) ================= */
+// When index.html is served by server.js, GhostView renders TikTok profiles natively from
+// public data. Opened as a plain file or on static hosting, it falls back to official embeds.
+let API = null;
+async function apiAvailable() {
+  if (API !== null) return API;
+  if (location.protocol === 'file:') return (API = false);
+  try { const r = await fetch('/api/health', { cache: 'no-store' }); API = r.ok && (await r.json()).ok === true; }
+  catch { API = false; }
+  return API;
+}
+const liveCache = {};
+const forceEmbed = new Set();
+function getLive(user) {
+  const c = liveCache[user];
+  if (c && Date.now() - c.at < 5 * 60000) return c.p;
+  const p = fetch('/api/tiktok/profile/' + encodeURIComponent(user))
+    .then(async r => ({ ...(await r.json().catch(() => ({}))), status: r.status }))
+    .catch(() => ({ status: 0, error: 'network' }));
+  liveCache[user] = { p, at: Date.now() };
+  p.then(r => { if (r.status !== 200) delete liveCache[user]; });
+  return p;
+}
+const fmt = n => n == null ? '—' : new Intl.NumberFormat('en', { notation: n >= 10000 ? 'compact' : 'standard', maximumFractionDigits: 1 }).format(n);
+const fmtFull = n => n == null ? 'Not available' : new Intl.NumberFormat('en').format(n);
+const fmtDate = t => t ? new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+const VERIFIED = '<svg class="vbadge" width="20" height="20" viewBox="0 0 24 24" aria-label="Verified"><circle cx="12" cy="12" r="11" fill="#20d5ec"/><path d="M7 12.5l3.2 3L17 9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const PIN_SM = '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M9 3h6l-1 7 3.5 3.5H6.5L10 10 9 3zM11 15h2v6l-1 1-1-1v-6z"/></svg>';
+const EYE_SM = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>';
+const linkify = s => esc(s).replace(/#([\p{L}\p{N}_]+)/gu, '<button class="tag" data-tag="$1">#$1</button>').replace(/@([a-zA-Z0-9._]{2,24})/g, '<a class="mention" href="#/tiktok/u/$1">@$1</a>').replace(/\n/g, '<br>');
+
+function lightbox(src, alt) {
+  const d = document.createElement('div');
+  d.className = 'lightbox';
+  d.innerHTML = `<button class="icon-btn lb-x" aria-label="Close">${I.x}</button><img src="${esc(src)}" alt="${esc(alt)}">`;
+  document.body.appendChild(d);
+  requestAnimationFrame(() => d.classList.add('open'));
+  const close = () => { d.classList.remove('open'); setTimeout(() => d.remove(), 300); removeEventListener('keydown', k); };
+  const k = e => { if (e.key === 'Escape') close(); };
+  d.onclick = e => { if (e.target === d || e.target.closest('.lb-x')) close(); };
+  addEventListener('keydown', k);
+}
+
+let liveFilter = { q: '', tag: '', sort: 'latest' };
+
+async function viewLiveProfile(user, tab) {
+  setBar(true);
+  tab = TT_TABS.some(t => t[0] === tab) ? tab : 'videos';
+  const c = prof[user] || {};
+  app.innerHTML = `<div class="view">${crumbs('Search')}
+    <section class="tt-head" id="liveHead"><div class="tt-top">
+      <div class="avatar tt"><span>${esc(user.charAt(0))}</span></div>
+      <div class="info" style="flex:1;min-width:0"><h1>${esc(c.name || '@' + user)}</h1><div class="handle"><span>@${esc(user)}</span><span class="status"><i></i>Loading public profile…</span></div></div></div>
+      <div class="stats">${['Followers', 'Following', 'Likes', 'Videos'].map(l => `<div class="stat"><div class="sk" style="height:22px;width:60%;margin:0 auto 6px"></div><span>${l}</span></div>`).join('')}</div>
+    </section>
+    <div class="tab-body"><div class="lib-grid" style="padding:0">${'<div class="vcard sk"></div>'.repeat(6)}</div></div></div>`;
+
+  const d = await getLive(user);
+  if (location.hash.indexOf('#/tiktok/u/' + user) !== 0) return;
+  curProfile = user;
+
+  if (d.status !== 200) return liveError(user, d);
+  profSet(user, { name: d.profile.nickname || undefined, confirmed: true });
+  const p = d.profile, s = d.stats;
+  const pinnedN = d.videos.filter(v => v.pinned).length;
+
+  app.innerHTML = `<div class="view">${crumbs('Search')}
+    <section class="tt-head">
+      <div class="tt-top">
+        <button class="avatar tt avatar-img" id="avBtn" aria-label="View profile photo full size">${p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : `<span>${esc(user.charAt(0))}</span>`}</button>
+        <div class="info" style="flex:1;min-width:0">
+          <h1>${esc(p.nickname || '@' + p.username)} ${p.verified ? VERIFIED : ''}</h1>
+          <div class="handle"><span>@${esc(p.username)}</span>
+            <span class="status ${p.private ? 'warn' : 'ok'}"><i></i>${p.private ? 'Private account' : 'Public profile'}</span>
+            ${p.organization ? '<span class="status">Organization</span>' : ''}</div>
+          ${p.bio ? `<p class="bio">${linkify(p.bio)}</p>` : ''}
+          ${p.bioLink ? `<a class="biolink" href="https://${esc(p.bioLink.replace(/^https?:\/\//, ''))}" target="_blank" rel="noopener noreferrer">${I.link.replace('width="22" height="22"', 'width="14" height="14"')} ${esc(p.bioLink.replace(/^https?:\/\//, ''))}</a>` : ''}
+          <div class="actions">
+            <button class="btn" data-copy="https://www.tiktok.com/@${esc(p.username)}">${I.copy} Copy link</button>
+            <a class="btn" href="https://www.tiktok.com/@${esc(p.username)}" target="_blank" rel="noopener noreferrer" title="Fallback: opens TikTok">${I.ext} TikTok</a>
+          </div>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat" title="${fmtFull(s.followers)}"><b>${fmt(s.followers)}</b><span>Followers</span></div>
+        <div class="stat" title="${fmtFull(s.following)}"><b>${fmt(s.following)}</b><span>Following</span></div>
+        <div class="stat" title="${fmtFull(s.likes)}"><b>${fmt(s.likes)}</b><span>Likes</span></div>
+        <div class="stat" title="${fmtFull(s.videos)}"><b>${fmt(s.videos)}</b><span>Videos</span></div>
+      </div>
+      ${d.partial ? `<div class="card-note">${I.info}<span>TikTok only returned partial data this time, so the video count and full-size photo are missing. Try again in a few minutes.</span></div>` : ''}
+    </section>
+    <nav class="tabs" role="tablist" aria-label="Profile sections">
+      ${TT_TABS.map(([k, l]) => {
+        const n = k === 'videos' ? d.videos.length : k === 'pinned' ? pinnedN : k === 'followers' ? fmt(s.followers) : k === 'following' ? fmt(s.following) : '';
+        return `<a class="tab" role="tab" href="#/tiktok/u/${encodeURIComponent(user)}/${k}" aria-selected="${k === tab}">${l}${n !== '' && n !== 0 ? `<span class="n">${n}</span>` : ''}${k === 'stories' ? '<i class="lockdot" title="Not available"></i>' : ''}</a>`;
+      }).join('')}
+    </nav>
+    <div class="tab-body" id="tabBody"></div>
+  </div>`;
+
+  $('#avBtn').onclick = () => { if (p.avatarLarge || p.avatar) lightbox(p.avatarLarge || p.avatar, p.nickname || p.username); };
+  app.querySelector('.bio') && app.querySelector('.bio').addEventListener('click', e => { const t = e.target.closest('[data-tag]'); if (t) { liveFilter.tag = t.dataset.tag; location.hash = `#/tiktok/u/${encodeURIComponent(user)}/videos`; renderLiveTab(user, 'videos', d); } });
+  renderLiveTab(user, tab, d);
+  bindCommon();
+}
+
+function liveError(user, d) {
+  const T = {
+    404: ['No TikTok account found', `There's no public TikTok account called @${esc(user)}. Check the spelling. Usernames can change.`, false],
+    451: ['This account can\'t be shown', 'TikTok doesn\'t allow this account to be shown outside its app. That usually means the account belongs to someone under 18 or the owner turned off embedding. GhostView respects that.', false],
+    429: ['Slow down a little', 'You\'ve looked up a lot of profiles in a short time. Wait about 20 seconds and try again.', true],
+    400: ['That username isn\'t valid', 'TikTok usernames use 2–24 letters, numbers, periods or underscores.', false]
+  }[d.status] || ['TikTok isn\'t responding right now', 'TikTok is limiting or blocking GhostView\'s requests for the moment. GhostView doesn\'t try to get around that. You can retry shortly, or use TikTok\'s official profile card for now.', true];
+  app.innerHTML = `<div class="view state"><div class="ico">${d.status === 404 ? I.user : d.status === 451 ? I.lock : I.warn}</div><h2>${T[0]}</h2><p>${T[1]}</p>
+    <div class="actions">${T[2] ? '<button class="btn primary" id="retry">Try again</button>' : '<a class="btn primary" href="#/">New search</a>'}
+    ${![404, 451, 400].includes(d.status) ? `<button class="btn" id="useEmbed">Use TikTok's profile card</button>` : ''}</div></div>`;
+  const r = $('#retry'); if (r) r.onclick = () => { delete liveCache[user]; render(); };
+  const e = $('#useEmbed'); if (e) e.onclick = () => { forceEmbed.add(user); curProfile = null; render(); };
+}
+
+function videoCard(v, user, i) {
+  return `<div class="vcard live">
+    ${v.cover ? `<img loading="lazy" src="${esc(v.cover)}" alt="">` : `<div class="art" style="--h:${parseInt(v.id.slice(-4), 10) % 360}"></div>`}
+    <a class="hit" href="#/tiktok/v/${v.id}/${encodeURIComponent(user)}" aria-label="Play video${v.desc ? ': ' + esc(v.desc.slice(0, 80)) : ''}">
+      ${v.pinned ? `<span class="pinb">${PIN_SM} Pinned</span>` : ''}
+      <span class="play">${I.play}</span>
+      <small class="cap">${esc(v.desc.slice(0, 90))}</small>
+      <b class="views">${EYE_SM} ${fmt(v.plays)}</b>
+    </a></div>`;
+}
+
+function renderLiveTab(user, tab, d) {
+  const body = $('#tabBody'); if (!body) return;
+  const s = d.stats;
+  if (tab === 'videos') {
+    if (d.profile.private) {
+      body.innerHTML = unavailable(I.lock, 'This account is private', 'Only approved followers can see this account\'s videos on TikTok. GhostView doesn\'t get around that.', [`<b>Public info only.</b> The name, photo, bio and counts above are what TikTok shows everyone.`], user, '');
+      return;
+    }
+    const tags = {}; d.videos.forEach(v => v.hashtags.forEach(t => tags[t] = (tags[t] || 0) + 1));
+    const topTags = Object.entries(tags).sort((a, b) => b[1] - a[1]).slice(0, 10).map(x => x[0]);
+    body.innerHTML = `<div class="panel">
+      <div class="lib-tools">
+        <input class="search-in grow" id="vq" placeholder="Search captions and hashtags" value="${esc(liveFilter.q)}" aria-label="Search videos">
+        <select class="search-in" id="vsort" style="min-width:0;width:auto" aria-label="Sort"><option value="latest">Latest</option><option value="views">Most viewed</option><option value="oldest">Oldest</option></select>
+      </div>
+      ${topTags.length ? `<div class="tagrow">${topTags.map(t => `<button class="tagchip" data-tag="${esc(t)}" aria-pressed="${liveFilter.tag === t}">#${esc(t)}</button>`).join('')}</div>` : ''}
+      <div class="lib-grid" id="vgrid"></div>
+      <div class="card-note" style="padding:0 18px 16px">${I.info}<span>These are the ${d.videos.length} most recent public videos TikTok shows signed-out visitors${s.videos ? `, out of ${fmtFull(s.videos)} total` : ''}. TikTok's public pages don't include older videos. To watch an older one in GhostView, paste its link below.</span></div>
+    </div>
+    <details class="panel older" style="margin-top:18px"><summary class="panel-h" style="cursor:pointer">Older videos by link <span class="muted">${libList(user).filter(x => !d.videos.some(v => v.id === x.id)).length || ''}</span></summary><div id="libWrap"></div></details>`;
+    $('#vsort').value = liveFilter.sort;
+    const draw = () => {
+      const q = liveFilter.q.toLowerCase();
+      let list = d.videos.filter(v => (!q || v.desc.toLowerCase().includes(q)) && (!liveFilter.tag || v.hashtags.includes(liveFilter.tag)));
+      if (liveFilter.sort === 'views') list = [...list].sort((a, b) => (b.plays || 0) - (a.plays || 0));
+      if (liveFilter.sort === 'oldest') list = [...list].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      $('#vgrid').innerHTML = list.length ? list.map((v, i) => videoCard(v, user, i)).join('') : `<div class="empty-note" style="grid-column:1/-1">No videos match${liveFilter.tag ? ' #' + esc(liveFilter.tag) : ''}${liveFilter.q ? ' "' + esc(liveFilter.q) + '"' : ''}.</div>`;
+      body.querySelectorAll('.tagchip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tag === liveFilter.tag)));
+    };
+    draw();
+    $('#vq').oninput = e => { liveFilter.q = e.target.value; draw(); };
+    $('#vsort').onchange = e => { liveFilter.sort = e.target.value; draw(); };
+    body.querySelectorAll('.tagchip').forEach(b => b.onclick = () => { liveFilter.tag = liveFilter.tag === b.dataset.tag ? '' : b.dataset.tag; draw(); });
+    const lw = $('#libWrap'); renderLibrary(lw, user);
+    lw.querySelector('.panel').style.border = '0';
+    return;
+  }
+  if (tab === 'pinned') {
+    const pins = d.videos.filter(v => v.pinned);
+    body.innerHTML = pins.length
+      ? `<div class="panel"><div class="panel-h">Pinned videos <span class="muted">Detected from TikTok's order</span></div><div class="lib-grid">${pins.map((v, i) => videoCard(v, user, i)).join('')}</div>
+         <div class="card-note" style="padding:0 18px 16px">${I.info}<span>TikTok shows pinned videos first, ahead of newer ones, and GhostView detects them from that order. A pinned video that's also the newest one can't be told apart, so it won't be labeled.</span></div></div>`
+      : unavailable(I.pin, 'No pinned videos detected', 'GhostView spots pinned videos when TikTok lists them ahead of newer ones. None were found for this profile.', ['<b>Possible miss:</b> if the only pinned video is also the newest one, it looks the same as normal order and can\'t be detected.', '<b>Highlights:</b> TikTok doesn\'t have Highlights. Playlists aren\'t included in TikTok\'s public pages.'], user, '');
+    return;
+  }
+  if (tab === 'followers' || tab === 'following') {
+    const n = tab === 'followers' ? s.followers : s.following;
+    body.innerHTML = unavailable(I.users, `${fmtFull(n)} ${tab === 'followers' ? 'followers' : 'following'}`,
+      `That's the exact count TikTok shows publicly. The list of accounts isn't public.`,
+      ['<b>Sign-in only.</b> TikTok only shows these lists to signed-in users, and creators can hide them completely.',
+       '<b>No workarounds.</b> Getting them would mean using a TikTok account behind the scenes. GhostView doesn\'t do that, so it shows no list instead of a fake or incomplete one.'], user, '');
+    return;
+  }
+  if (tab === 'stories') { renderTab(user, 'stories'); return; }
+  if (tab === 'about') {
+    const p = d.profile, newest = d.videos.reduce((m, v) => Math.max(m, v.createdAt || 0), 0);
+    body.innerHTML = `<div class="grid2" style="margin-top:0"><div class="panel"><div class="panel-h">Account information <span class="muted">Public data only</span></div><ul class="kv">
+      <li><span>Display name</span><span>${esc(p.nickname || '—')}</span></li>
+      <li><span>Username</span><span>@${esc(p.username)}</span></li>
+      <li><span>Verified</span><span>${p.verified ? 'Yes' : 'No'}</span></li>
+      <li><span>Account type</span><span>${p.private ? 'Private' : 'Public'}${p.organization ? ' · Organization' : ''}</span></li>
+      <li><span>Bio</span><span>${p.bio ? linkify(p.bio) : '—'}</span></li>
+      <li><span>Bio link</span><span>${p.bioLink ? esc(p.bioLink) : '—'}</span></li>
+      <li><span>Followers</span><span>${fmtFull(s.followers)}</span></li>
+      <li><span>Following</span><span>${fmtFull(s.following)}</span></li>
+      <li><span>Likes</span><span>${fmtFull(s.likes)}</span></li>
+      <li><span>Videos</span><span>${fmtFull(s.videos)}</span></li>
+      <li><span>Latest public video</span><span>${newest ? fmtDate(newest) : '—'}</span></li>
+      <li><span>Data fetched</span><span>${ago(d.fetchedAt)}<span class="src">Cached for up to 10 minutes to avoid repeat requests to TikTok</span></span></li>
+    </ul></div>
+    <aside class="panel"><div class="panel-h">Where this comes from</div><ul class="feat">
+      <li><i class="dot ok"></i><div><b>Public profile page</b><span>What TikTok shows anyone who isn't signed in. Read by GhostView's server, so TikTok never sees your IP address.</span></div></li>
+      <li><i class="dot ok"></i><div><b>TikTok's public embed</b><span>Recent videos and view counts, plus TikTok's own signal that this account can be shown outside the app.</span></div></li>
+      <li><i class="dot no"></i><div><b>Never used</b><span>Signed-in accounts, cookies, private APIs, or ways around TikTok's bot checks.</span></div></li>
+    </ul></aside></div>`;
+  }
+}
+
+/* ================= v3: icons ================= */
+Object.assign(I, {
+  home: '<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1v-8.5z"/></svg>',
+  searchNav: '<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
+  feed: '<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M10.5 9.5v5l4-2.5-4-2.5z" fill="currentColor"/></svg>',
+  compass: '<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5 5-2z"/></svg>',
+  history: '<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6M3.5 4v4h4"/><path d="M12 8v4.5l3 2"/></svg>',
+  check: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  repost: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l3 3-3 3M4 11V9a3 3 0 0 1 3-3h13M7 21l-3-3 3-3M20 13v2a3 3 0 0 1-3 3H4"/></svg>',
+  up: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>',
+  down: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+  close: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+});
+
+/* ================= v3: follows & watch history (this device only) ================= */
+let follows = store.get('follows', []);
+let watched = store.get('watched', []);
+const isFollowing = u => follows.includes(u);
+function toggleFollow(u) {
+  follows = isFollowing(u) ? follows.filter(x => x !== u) : [u, ...follows];
+  store.set('follows', follows); return isFollowing(u);
+}
+function recordWatch(it) {
+  watched = [{ id: it.id, user: it.user || null, desc: it.desc || '', cover: it.cover || null, plays: it.plays ?? null, createdAt: it.createdAt || null, t: Date.now() },
+    ...watched.filter(w => w.id !== it.id)].slice(0, 150);
+  store.set('watched', watched);
+}
+function followBtn(u, small) {
+  const on = isFollowing(u);
+  return `<button class="btn ${on ? '' : 'primary'} ${small ? 'sm' : ''}" data-follow="${esc(u)}" aria-pressed="${on}">${on ? I.check + ' Following' : I.plus + ' Follow'}</button>`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-follow]'); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const u = b.dataset.follow, on = toggleFollow(u), small = b.classList.contains('sm');
+  document.querySelectorAll('[data-follow]').forEach(x => { if (x.dataset.follow === u) x.outerHTML = followBtn(u, small || x.classList.contains('sm')); });
+  toast(on ? `Following @${u}. Saved on this device only.` : `Unfollowed @${u}`);
+}, true);
+function addFollowToHeader(u) {
+  const a = document.querySelector('.tt-head .actions');
+  if (a && !a.querySelector('[data-follow]')) a.insertAdjacentHTML('afterbegin', followBtn(u));
+}
+{ const _a = viewLiveProfile; viewLiveProfile = async (u, t) => { await _a(u, t); addFollowToHeader(u); }; }
+{ const _b = viewTikTokProfile; viewTikTokProfile = (u, t) => { _b(u, t); addFollowToHeader(u); }; }
+
+/* ================= v3: extra profile tabs ================= */
+TT_TABS.splice(2, 0, ['reposts', 'Reposts']);
+LOCKED.add('reposts');
+function repostsTab(u) {
+  $('#tabBody').innerHTML = unavailable(I.repost, 'Reposts aren\'t public',
+    'TikTok doesn\'t include reposts in anything it shows signed-out visitors, so GhostView can\'t list them. Nothing here is made up.',
+    ['<b>Protected feed.</b> TikTok loads the Reposts tab through its own in-app feed, which blocks automated access. GhostView doesn\'t get around bot checks.',
+     '<b>Not in any embed.</b> TikTok\'s public profile embed only has the creator\'s own recent uploads.',
+     '<b>Creators can hide them.</b> Many accounts turn the Reposts tab off completely.'], u,
+    `<a class="btn primary" href="#/tiktok/u/${encodeURIComponent(u)}/videos">See their own videos</a>`);
+}
+function followingTab(u, d) {
+  const mentions = [...new Set(d.videos.flatMap(v => (v.desc.match(/@([a-zA-Z0-9._]{2,24})/g) || []).map(m => m.slice(1).toLowerCase())))].filter(m => m !== u);
+  $('#tabBody').innerHTML = unavailable(I.users, `Following ${fmtFull(d.stats.following)} accounts`,
+    'That\'s the exact count TikTok shows publicly. The list of accounts is only shown to signed-in TikTok users, and creators can hide it.',
+    ['<b>No workarounds.</b> Getting the list would mean using a TikTok account behind the scenes, so GhostView shows no list instead of a fake one.'], u, '')
+    + `<div class="panel" style="margin-top:18px"><div class="panel-h">Accounts @${esc(u)} mentions <span class="muted">From recent captions</span></div>
+      ${mentions.length ? `<div class="people" style="padding:16px 18px">${mentions.map(m => personTile(m)).join('')}</div>`
+        : `<div class="empty-note">@${esc(u)} hasn't tagged any accounts in their recent captions.</div>`}</div>`;
+}
+function personTile(u, sub) {
+  const p = prof[u] || {};
+  return `<a class="person" href="#/tiktok/u/${encodeURIComponent(u)}"><div class="avatar tt"><span>${esc(u.charAt(0))}</span></div><b>${esc(p.name || '@' + u)}</b><div>${sub || '@' + esc(u)}</div></a>`;
+}
+{
+  const _rt = renderTab;
+  renderTab = (u, t) => t === 'reposts' ? repostsTab(u) : _rt(u, t);
+  const _rlt = renderLiveTab;
+  renderLiveTab = (u, t, d) => {
+    if (t === 'reposts') return repostsTab(u);
+    if (t === 'following') return followingTab(u, d);
+    const r = _rlt(u, t, d);
+    hookGrid(document.getElementById('tabBody'), d.videos, u);
+    return r;
+  };
+}
+// Clicking a video in any grid opens the viewer with exactly the videos shown, in that order.
+function hookGrid(container, list, user) {
+  if (!container || container.dataset.hooked) return;
+  container.dataset.hooked = '1';
+  container.addEventListener('click', e => {
+    const a = e.target.closest('a.hit'); if (!a) return;
+    const grid = a.closest('.lib-grid'); if (!grid) return;
+    const ids = [...grid.querySelectorAll('a.hit')].map(x => x.getAttribute('href').split('/')[3]);
+    const byId = new Map(list.map(v => [v.id, v]));
+    viewerQueue = { items: ids.map(id => normV(byId.get(id) || { id }, (byId.get(id) || {}).user || user)) };
+  });
+}
+
+/* ================= v3: vertical video viewer ================= */
+let vv = null, viewerQueue = null, vvMuted = true, pageHash = null;
+const normV = (v, u) => ({ id: v.id, user: u || v.user || null, desc: v.desc || '', hashtags: v.hashtags || [], cover: v.cover || null, plays: v.plays ?? null, createdAt: v.createdAt || null, pinned: !!v.pinned });
+const vidHash = it => `#/tiktok/v/${it.id}${it.user ? '/' + encodeURIComponent(it.user) : ''}`;
+
+openVideo = async function (id, user) {
+  player = null;
+  let items = viewerQueue && viewerQueue.items.some(x => x.id === id) ? viewerQueue.items : null;
+  viewerQueue = null;
+  const fromApp = pageHash !== null && !!app.innerHTML.trim();
+  if (!fromApp) { viewHome(); }
+  if (!items) {
+    let live = null;
+    if (user && !forceEmbed.has(user) && await apiAvailable()) {
+      const d = await getLive(user);
+      if (d.status === 200 && !d.profile.private) live = d;
+    }
+    const liveItems = live ? live.videos.map(v => normV(v, user)) : [];
+    if (!liveItems.some(x => x.id === id)) libAdd(user, id);
+    const extras = libList(user).filter(x => !liveItems.some(v => v.id === x.id)).map(x => normV({ id: x.id }, user));
+    items = [...liveItems, ...extras];
+  }
+  if (location.hash.indexOf('#/tiktok/v/' + id) !== 0) return;
+  vvOpen(items, Math.max(0, items.findIndex(x => x.id === id)), fromApp);
+};
+
+function vvOpen(items, idx, fromApp) {
+  if (vv) closeVV();
+  const el = document.createElement('div');
+  el.className = 'vv'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Video viewer');
+  el.innerHTML = `
+    <div class="vv-stage" id="vvStage">
+      <div class="vv-touch" id="vvTouch" aria-hidden="true"></div>
+      <div class="vv-flash" id="vvFlash"></div>
+      <div class="vv-err" id="vvErr"></div>
+      <div class="vv-top">
+        <button class="vv-ic" id="vvBack" aria-label="Back">${I.back}</button>
+        <span class="vv-count" id="vvCount"></span>
+        <span class="vv-topx" id="vvTopX"></span>
+        <button class="vv-ic" id="vvMute" aria-label="Sound"></button>
+        ${document.fullscreenEnabled ? `<button class="vv-ic" id="vvFull" aria-label="Full screen">${I.full}</button>` : ''}
+      </div>
+      <div class="vv-info" id="vvInfo"></div>
+      <div class="vv-prog" id="vvProg" role="slider" aria-label="Seek" tabindex="0"><div class="vv-track"><i id="vvFill"></i><b id="vvKnob"></b></div><span id="vvTime"></span></div>
+    </div>
+    <div class="vv-side"><button class="vv-ic lg" id="vvPrev" aria-label="Previous video">${I.up}</button><button class="vv-ic lg" id="vvNext" aria-label="Next video">${I.down}</button></div>`;
+  document.body.appendChild(el);
+  document.body.classList.add('vv-open');
+  vv = { el, items, idx, fromApp, under: pageHash, stage: el.querySelector('#vvStage'), touch: el.querySelector('#vvTouch'), frame: null, ready: false, playing: false, dur: 0, t: 0 };
+  requestAnimationFrame(() => el.classList.add('open'));
+
+  $('#vvBack').onclick = vvClose;
+  $('#vvMute').onclick = () => vvSend(vv.muted ? 'unMute' : 'mute');
+  if ($('#vvFull')) $('#vvFull').onclick = () => { try { document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen(); } catch { } };
+  $('#vvPrev').onclick = () => vvGo(-1);
+  $('#vvNext').onclick = () => vvGo(1);
+
+  // Touch: swipe up/down for next/previous, tap to play/pause
+  let sy = 0, sx = 0, st = 0, moved = false;
+  vv.touch.addEventListener('touchstart', e => { sy = e.touches[0].clientY; sx = e.touches[0].clientX; st = Date.now(); moved = false; }, { passive: true });
+  vv.touch.addEventListener('touchmove', e => { const dy = e.touches[0].clientY - sy; if (Math.abs(dy) > 10) { moved = true; vv.stage.querySelector('.vv-slot').style.transform = `translateY(${dy * 0.35}px)`; } }, { passive: true });
+  vv.touch.addEventListener('touchend', e => {
+    const dy = e.changedTouches[0].clientY - sy, dx = e.changedTouches[0].clientX - sx;
+    const s = vv.stage.querySelector('.vv-slot'); if (s) s.style.transform = '';
+    if (Math.abs(dy) > 60 && Math.abs(dy) > Math.abs(dx)) vvGo(dy < 0 ? 1 : -1);
+    else if (!moved && Date.now() - st < 400) vvToggle();
+    e.preventDefault();
+  });
+  vv.touch.addEventListener('click', e => { if (e.pointerType !== 'touch' && e.detail !== 0) vvToggle(); });
+  let wheelLock = 0;
+  el.addEventListener('wheel', e => { e.preventDefault(); if (Date.now() - wheelLock < 650 || Math.abs(e.deltaY) < 25) return; wheelLock = Date.now(); vvGo(e.deltaY > 0 ? 1 : -1); }, { passive: false });
+
+  // Progress bar seek (tap or drag)
+  const prog = $('#vvProg');
+  const seekAt = x => { const r = prog.querySelector('.vv-track').getBoundingClientRect(); const f = Math.min(1, Math.max(0, (x - r.left) / r.width)); if (vv.dur) { vvSend('seekTo', f * vv.dur); vvSetProgress(f * vv.dur, vv.dur); } };
+  let drag = false;
+  prog.addEventListener('pointerdown', e => { drag = true; prog.setPointerCapture(e.pointerId); seekAt(e.clientX); });
+  prog.addEventListener('pointermove', e => { if (drag) seekAt(e.clientX); });
+  prog.addEventListener('pointerup', () => { drag = false; });
+  prog.addEventListener('keydown', e => { if (!vv.dur) return; if (e.key === 'ArrowRight') { e.stopPropagation(); vvSend('seekTo', Math.min(vv.dur, vv.t + 5)); } if (e.key === 'ArrowLeft') { e.stopPropagation(); vvSend('seekTo', Math.max(0, vv.t - 5)); } });
+
+  vvLoad(idx, 0);
+}
+
+function playerSrc(it) {
+  const own = it.desc ? 0 : 1; // show TikTok's caption only when GhostView doesn't have it
+  return `https://www.tiktok.com/player/v1/${it.id}?controls=0&progress_bar=0&play_button=0&volume_control=0&fullscreen_button=0&timestamp=0&music_info=${own}&description=${own}&rel=0&native_context_menu=0&closed_caption=1&autoplay=1&muted=${vvMuted ? 1 : 0}`;
+}
+
+function vvLoad(i, dir) {
+  const it = vv.items[i]; if (!it) return;
+  Object.assign(vv, { idx: i, ready: false, playing: false, dur: 0, t: 0, muted: vvMuted });
+  history.replaceState(null, '', vidHash(it));
+  const slot = document.createElement('div');
+  slot.className = 'vv-slot' + (dir > 0 ? ' in-up' : dir < 0 ? ' in-down' : '');
+  slot.innerHTML = `${it.cover ? `<img class="vv-cover" src="${esc(it.cover)}" alt="">` : '<div class="vv-cover sk"></div>'}
+    <iframe title="TikTok video" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerpolicy="no-referrer" ${strict ? 'credentialless' : ''}
+      sandbox="allow-scripts allow-same-origin allow-presentation" src="${playerSrc(it)}"></iframe>`;
+  const old = vv.stage.querySelector('.vv-slot');
+  vv.stage.insertBefore(slot, vv.touch);
+  if (old) { old.classList.add(dir > 0 ? 'out-up' : 'out-down'); setTimeout(() => old.remove(), 420); }
+  vv.frame = slot.querySelector('iframe');
+  vv.frame.onload = () => vv && vv.frame && vv.frame.classList.add('ready');
+  $('#vvErr').classList.remove('show');
+  $('#vvCount').textContent = `${i + 1} / ${vv.items.length}`;
+  $('#vvPrev').disabled = i === 0; $('#vvNext').disabled = i === vv.items.length - 1;
+  vvSetProgress(0, 0); vvUI();
+
+  const name = it.user ? (prof[it.user] && prof[it.user].name) || '@' + it.user : 'TikTok video';
+  const copyUrl = it.user ? `https://www.tiktok.com/@${it.user}/video/${it.id}` : `https://www.tiktok.com/player/v1/${it.id}`;
+  // No caption from GhostView's server: TikTok's player shows its own caption at the bottom, so keep our controls up top.
+  $('#vvTopX').innerHTML = it.desc ? '' : `${it.user ? followBtn(it.user, true) : ''}<button class="vv-link" data-copy="${esc(copyUrl)}">${I.copy} Copy</button>`;
+  $('#vvInfo').style.display = it.desc ? '' : 'none';
+  $('#vvInfo').innerHTML = `
+    <div class="vv-who">${it.user ? `<a href="#/tiktok/u/${encodeURIComponent(it.user)}" class="vv-av"><span>${esc(it.user.charAt(0))}</span></a>
+      <a href="#/tiktok/u/${encodeURIComponent(it.user)}" class="vv-name"><b>${esc(name)}</b><small>@${esc(it.user)}</small></a>${followBtn(it.user, true)}` : '<b>TikTok video</b>'}</div>
+    ${it.desc ? `<p class="vv-cap" id="vvCap">${linkify(it.desc)}</p>` : ''}
+    <div class="vv-meta">${it.pinned ? `<span class="pinb" style="position:static">${PIN_SM} Pinned</span>` : ''}
+      ${it.plays != null ? `<span>${EYE_SM} ${fmt(it.plays)} views</span>` : ''}${it.createdAt ? `<span>${fmtDate(it.createdAt)}</span>` : ''}
+      <button class="vv-link" data-copy="${esc(it.user ? `https://www.tiktok.com/@${it.user}/video/${it.id}` : `https://www.tiktok.com/player/v1/${it.id}`)}">${I.copy} Copy link</button></div>`;
+  const cap = $('#vvCap');
+  if (cap) cap.onclick = e => {
+    const t = e.target.closest('[data-tag]');
+    if (t && it.user) { liveFilter.tag = t.dataset.tag; vv.forceRerender = true; location.hash = `#/tiktok/u/${encodeURIComponent(it.user)}/videos`; return; }
+    if (!e.target.closest('a')) cap.classList.toggle('open');
+  };
+  vv.el.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => copy(b.dataset.copy));
+  recordWatch(it);
+  const nx = vv.items[i + 1]; if (nx && nx.cover) { const im = new Image(); im.src = nx.cover; }
+}
+
+function vvGo(d) { if (!vv) return; const j = vv.idx + d; if (j < 0 || j >= vv.items.length) { vvFlash(d > 0 ? 'End of list' : 'First video'); return; } vvLoad(j, d); }
+function vvSend(type, value) { if (vv && vv.frame && vv.frame.contentWindow) vv.frame.contentWindow.postMessage({ type, value, 'x-tiktok-player': true }, 'https://www.tiktok.com'); }
+function vvToggle() { if (!vv) return; if (!vv.ready) { vvFlash('Loading…'); return; } vvSend(vv.playing ? 'pause' : 'play'); vvFlash(vv.playing ? I.pause : I.play); }
+function vvFlash(html) { const f = $('#vvFlash'); if (!f) return; f.innerHTML = html.startsWith('<') ? html : `<span>${esc(html)}</span>`; f.classList.remove('show'); void f.offsetWidth; f.classList.add('show'); }
+function vvUI() { const m = $('#vvMute'); if (m) { m.innerHTML = vv.muted ? I.mute : I.vol; m.classList.toggle('hint', !!vv.muted); } const paused = vv.ready && !vv.playing; vv.el.classList.toggle('paused', paused); if (paused) { const f = $('#vvFlash'); if (f) f.innerHTML = I.play; } }
+const tfmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+function vvSetProgress(t, d) {
+  const f = d ? Math.min(1, t / d) : 0;
+  const fill = $('#vvFill'), knob = $('#vvKnob'), tm = $('#vvTime');
+  if (fill) fill.style.width = (f * 100) + '%'; if (knob) knob.style.left = (f * 100) + '%';
+  if (tm) tm.textContent = d ? `${tfmt(t)} / ${tfmt(d)}` : '';
+}
+function vvClose() {
+  if (!vv) return;
+  if (vv.fromApp && vv.under !== null) history.back();
+  else { const it = vv.items[vv.idx]; location.hash = it && it.user ? `#/tiktok/u/${encodeURIComponent(it.user)}` : '#/'; }
+}
+function closeVV() {
+  if (!vv) return;
+  const el = vv.el; vv = null;
+  el.classList.remove('open'); document.body.classList.remove('vv-open');
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
+  setTimeout(() => el.remove(), 300);
+}
+
+addEventListener('message', e => {
+  if (!vv || !vv.frame || e.origin !== 'https://www.tiktok.com' || e.source !== vv.frame.contentWindow) return;
+  let d = e.data; try { if (typeof d === 'string') d = JSON.parse(d); } catch { return; }
+  if (!d || !d['x-tiktok-player']) return;
+  switch (d.type) {
+    case 'onPlayerReady': vv.ready = true; vvUI(); break;
+    case 'onStateChange':
+      vv.ready = true; vv.playing = d.value === 1 || d.value === 3;
+      if (d.value === 0) { if (autoNext && vv.idx < vv.items.length - 1) vvGo(1); else { vvSend('seekTo', 0); vvSend('play'); } }
+      vvUI(); break;
+    case 'onMute': vv.muted = !!d.value; vvMuted = vv.muted; vvUI(); break;
+    case 'onCurrentTime': if (d.value) { vv.t = d.value.currentTime; vv.dur = d.value.duration; vvSetProgress(vv.t, vv.dur); } break;
+    case 'onPlayerError': {
+      const c = d.value && d.value.errorCode;
+      if (c === 3002) { vv.ready = true; vv.playing = false; vvUI(); vvFlash('Tap to play'); break; }
+      const msg = c === 1001 ? ['Video unavailable', 'This video was removed, made private, or doesn\'t exist. TikTok won\'t play it.']
+        : c === 2001 ? ['TikTok had a problem', 'TikTok\'s servers didn\'t deliver this video. Try again shortly.']
+        : ['Can\'t play this video', 'TikTok\'s player reported an error.'];
+      const er = $('#vvErr');
+      er.innerHTML = `<div>${I.warn}</div><h3>${msg[0]}</h3><p>${msg[1]}</p>${vv.idx < vv.items.length - 1 ? '<button class="btn" id="vvSkip">Next video</button>' : ''}`;
+      er.classList.add('show'); const sk = $('#vvSkip'); if (sk) sk.onclick = () => vvGo(1);
+    }
+  }
+});
+addEventListener('keydown', e => {
+  if (!vv || /input|textarea/i.test(document.activeElement.tagName)) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'j') { e.preventDefault(); vvGo(1); }
+  else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'k') { e.preventDefault(); vvGo(-1); }
+  else if (e.key === ' ') { e.preventDefault(); vvToggle(); }
+  else if (e.key.toLowerCase() === 'm') vvSend(vv.muted ? 'unMute' : 'mute');
+  else if (e.key.toLowerCase() === 'f' && $('#vvFull')) $('#vvFull').click();
+  else if (e.key === 'Escape' && !document.fullscreenElement) vvClose();
+}, true);
+
+/* ================= v3: bottom navigation pages ================= */
+const NAV = [['home', '#/', 'Home', 'home'], ['search', '#/search', 'Search', 'searchNav'], ['following', '#/following', 'Following', 'feed'], ['explore', '#/explore', 'Explore', 'compass'], ['history', '#/history', 'History', 'history']];
+function updateNav(key) {
+  const n = $('#bnav'); if (!n) return;
+  n.querySelectorAll('a').forEach(a => a.setAttribute('aria-current', a.dataset.nav === key ? 'page' : 'false'));
+}
+function pageHead(title, sub, right = '') {
+  return `<header class="page-h"><div><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>${right}</header>`;
+}
+
+function viewSearch() {
+  setBar(false);
+  app.innerHTML = `<div class="view">${pageHead('Search', 'Usernames, profile links or video links')}
+    <div style="text-align:center"><div class="seg" id="seg" role="group" aria-label="Platform" style="margin-top:6px"><span class="pill"></span>
+      <button data-p="tiktok" aria-pressed="${platform === 'tiktok'}">${I.tt} TikTok</button>
+      <button data-p="instagram" aria-pressed="${platform === 'instagram'}">${I.ig} Instagram</button></div></div>
+    <form class="search" id="homeForm" role="search"><div class="field"><span class="lead">${I.search}</span>
+      <input id="q" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" placeholder="${platform === 'instagram' ? 'Instagram username or link' : 'TikTok username or link'}" aria-label="Username or link" aria-controls="suggest" aria-expanded="false">
+      <button type="button" class="clear-x" id="qClear" aria-label="Clear">${I.x}</button><button class="go" type="submit" disabled><span>View</span>${I.arrow}</button></div>
+      <div class="suggest" id="suggest" role="listbox"></div><div class="hint" id="hint"></div></form>
+    ${peopleRow()}
+    <section class="section"><div class="section-h"><h2>Search history</h2>${recents.length ? '<button class="link-btn" id="clearHist">Clear</button>' : ''}</div>
+      <div class="recents">${recents.length ? recents.map(x => { const d = describe(x), k = P[x.platform].key; return `<div class="r-row"><a class="main" href="${esc(x.key)}"><span class="badge ${k}">${I[k]}</span><span style="min-width:0"><div class="t">${esc(d.title)}</div><div class="s">${esc(d.sub)}</div></span></a></div>`; }).join('') : '<div class="empty-note">Nothing yet.</div>'}</div></section></div>`;
+  $('#seg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setPlatform(b.dataset.p); });
+  requestAnimationFrame(movePill);
+  bindSearch($('#homeForm'), $('#q'), { hintEl: $('#hint'), suggestEl: $('#suggest'), clearEl: $('#qClear') });
+  const ch = $('#clearHist'); if (ch) ch.onclick = () => { recents = []; store.set('recents', []); viewSearch(); };
+  const cp = $('#clearPeople'); if (cp) cp.onclick = () => { prof = {}; store.set('prof', {}); viewSearch(); };
+  setTimeout(() => $('#q') && $('#q').focus(), 350);
+}
+
+// Following feed: recent public videos from accounts you follow in GhostView, newest first.
+async function loadFeed(onProgress) {
+  const list = follows.slice(0, 40), out = [], issues = [];
+  let i = 0, done = 0;
+  const worker = async () => {
+    while (i < list.length) {
+      const u = list[i++];
+      const d = await getLive(u);
+      if (d.status === 200) {
+        if (d.profile.private) issues.push([u, 'Private']);
+        else d.videos.forEach(v => out.push(normV(v, u)));
+      } else issues.push([u, d.status === 404 ? 'Not found' : d.status === 451 ? 'Can\'t be shown' : 'TikTok didn\'t respond']);
+      onProgress && onProgress(++done, list.length);
+    }
+  };
+  await Promise.all([worker(), worker()]);
+  out.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  return { items: out, issues };
+}
+function feedCard(v) {
+  return `<div class="vcard live">${v.cover ? `<img loading="lazy" src="${esc(v.cover)}" alt="">` : `<div class="art" style="--h:${parseInt(v.id.slice(-4), 10) % 360}"></div>`}
+    <a class="hit" href="${vidHash(v)}">${v.pinned ? `<span class="pinb">${PIN_SM} Pinned</span>` : ''}<span class="by">@${esc(v.user || '')}</span>
+      <span class="play">${I.play}</span><small class="cap">${esc(v.desc.slice(0, 90))}</small>
+      <b class="views">${v.plays != null ? EYE_SM + ' ' + fmt(v.plays) : ''}${v.createdAt ? `<em>${ago(v.createdAt)}</em>` : ''}</b></a></div>`;
+}
+
+async function viewFollowing() {
+  setBar(false);
+  const manage = follows.length ? `<div class="chips">${follows.map(u => `<span class="fchip"><a href="#/tiktok/u/${encodeURIComponent(u)}">@${esc(u)}</a><button data-unf="${esc(u)}" aria-label="Unfollow @${esc(u)}">${I.x}</button></span>`).join('')}</div>` : '';
+  app.innerHTML = `<div class="view">${pageHead('Following', follows.length ? `${follows.length} account${follows.length > 1 ? 's' : ''} · saved on this device` : 'Your private feed', follows.length ? '<button class="btn primary" id="playFeed" disabled>' + I.play.replace('width="20" height="20"', 'width="14" height="14"') + ' Play feed</button>' : '')}
+    ${follows.length ? manage + '<div id="feedBody"></div>' : `<section class="unavail"><div class="ico">${I.feed}</div><h2>Follow creators privately</h2><p>Tap <b>Follow</b> on any TikTok profile in GhostView. Their newest public videos show up here. It's saved only on this device. TikTok is never told, and your TikTok account isn't involved.</p><div class="actions"><a class="btn primary" href="#/explore">Find accounts</a><a class="btn" href="#/search">Search</a></div></section>`}</div>`;
+  app.querySelectorAll('[data-unf]').forEach(b => b.onclick = () => { toggleFollow(b.dataset.unf); toast('Unfollowed @' + b.dataset.unf); viewFollowing(); });
+  if (!follows.length) return;
+  const body = $('#feedBody');
+  if (!(await apiAvailable())) {
+    body.innerHTML = `<div class="card-note" style="padding:10px 2px 14px">${I.info}<span>Without GhostView's server, the feed shows each account's official TikTok profile card. Tapping a video in a card opens TikTok. To get an in-app feed you can swipe through, run GhostView with server.js.</span></div>`
+      + follows.slice(0, 12).map(u => `<div class="panel" style="margin-bottom:14px"><div class="panel-h"><a href="#/tiktok/u/${encodeURIComponent(u)}">@${esc(u)}</a><span class="muted">TikTok profile card</span></div><div class="card-frame" style="margin:14px"><iframe data-ttcard="1" loading="lazy" ${strict ? 'credentialless' : ''} referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="@${esc(u)}" src="https://www.tiktok.com/embed/@${encodeURIComponent(u)}" onload="this.classList.add('ready')"></iframe></div></div>`).join('');
+    return;
+  }
+  body.innerHTML = `<p class="loading-line" id="feedProg">Loading your feed…</p><div class="lib-grid" style="padding:0">${'<div class="vcard sk"></div>'.repeat(6)}</div>`;
+  const { items, issues } = await loadFeed((n, t) => { const p = $('#feedProg'); if (p) p.textContent = `Loading ${n} of ${t} accounts…`; });
+  if (location.hash !== '#/following') return;
+  body.innerHTML = (issues.length ? `<div class="card-note" style="padding:4px 2px 14px">${I.info}<span>Couldn't load: ${issues.map(([u, r]) => `@${esc(u)} (${r})`).join(', ')}.</span></div>` : '')
+    + (items.length ? `<div class="lib-grid" style="padding:0" id="feedGrid">${items.map(feedCard).join('')}</div>
+      <div class="card-note" style="padding:14px 2px">${I.info}<span>Each account's most recent public videos, newest first. Older videos and reposts aren't included in TikTok's public pages.</span></div>`
+      : '<div class="empty-note">No public videos from the accounts you follow yet.</div>');
+  hookGrid(body, items, null);
+  const pf = $('#playFeed'); if (pf && items.length) { pf.disabled = false; pf.onclick = () => { viewerQueue = { items }; location.hash = vidHash(items[0]); }; }
+}
+
+const EXPLORE_ACCOUNTS = ['nasa', 'nba', 'natgeo', 'espn', 'nfl', 'washingtonpost', 'bbcnews', 'mlb'];
+async function viewExplore() {
+  setBar(false);
+  app.innerHTML = `<div class="view">${pageHead('Explore', 'Discover through public profiles')}
+    <div class="card-note" style="padding:0 2px 16px">${I.info}<span>TikTok's For You and trending feeds are only available through its private app, so Explore is built from public profiles: accounts you follow, profiles you've viewed, and a few public accounts to start with.</span></div>
+    <section class="section" style="margin-top:0;max-width:none"><div class="section-h"><h2>Public accounts to start with</h2></div>
+      <div class="people">${EXPLORE_ACCOUNTS.map(u => `<div class="person-wrap">${personTile(u)}${followBtn(u, true)}</div>`).join('')}</div></section>
+    <section class="section" style="max-width:none" id="tagSec"></section>
+    <section class="section" style="max-width:none" id="tagResults"></section></div>`;
+  if (!(await apiAvailable())) {
+    $('#tagSec').innerHTML = `<div class="empty-note">Hashtag discovery needs GhostView's server (server.js). It's built from the captions of public videos.</div>`;
+    return;
+  }
+  const pool = [...new Set([...follows, ...Object.entries(prof).filter(([, v]) => v.seen).sort((a, b) => b[1].seen - a[1].seen).map(x => x[0])])].slice(0, 12);
+  if (!pool.length) { $('#tagSec').innerHTML = `<div class="section-h"><h2>Hashtags</h2></div><div class="empty-note">View or follow a few profiles and hashtags from their recent videos will show up here.</div>`; return; }
+  $('#tagSec').innerHTML = `<div class="section-h"><h2>Hashtags from your creators</h2></div><p class="loading-line">Gathering public videos…</p>`;
+  const vids = [];
+  for (const u of pool) { const d = await getLive(u); if (d.status === 200 && !d.profile.private) d.videos.forEach(v => vids.push(normV(v, u))); if (location.hash !== '#/explore') return; }
+  const tags = {}; vids.forEach(v => v.hashtags.forEach(t => { const k = t.toLowerCase(); tags[k] = (tags[k] || 0) + 1; }));
+  const top = Object.entries(tags).sort((a, b) => b[1] - a[1]).slice(0, 24);
+  $('#tagSec').innerHTML = `<div class="section-h"><h2>Hashtags from your creators</h2><span class="muted" style="font-size:12px;color:var(--text3)">${vids.length} public videos</span></div>`
+    + (top.length ? `<div class="tagrow" style="padding:0;flex-wrap:wrap">${top.map(([t, n]) => `<button class="tagchip" data-x="${esc(t)}">#${esc(t)} <span style="opacity:.6">${n}</span></button>`).join('')}</div>` : '<div class="empty-note">No hashtags in these creators\' recent captions.</div>')
+    + (vids.length ? `<div class="section-h" style="margin-top:22px"><h2>Most viewed recently</h2></div><div class="lib-grid" style="padding:0" id="exTop">${[...vids].sort((a, b) => (b.plays || 0) - (a.plays || 0)).slice(0, 12).map(feedCard).join('')}</div>` : '');
+  hookGrid($('#tagSec'), vids, null); hookGrid($('#tagResults'), vids, null);
+  $('#tagSec').querySelectorAll('[data-x]').forEach(b => b.onclick = () => {
+    const t = b.dataset.x, on = b.getAttribute('aria-pressed') === 'true';
+    $('#tagSec').querySelectorAll('[data-x]').forEach(x => x.setAttribute('aria-pressed', 'false'));
+    if (on) { $('#tagResults').innerHTML = ''; return; }
+    b.setAttribute('aria-pressed', 'true');
+    const m = vids.filter(v => v.hashtags.some(h => h.toLowerCase() === t));
+    $('#tagResults').innerHTML = `<div class="section-h"><h2>#${esc(t)}</h2></div><div class="lib-grid" style="padding:0">${m.map(feedCard).join('')}</div>`;
+    $('#tagResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+function viewHistory() {
+  setBar(false);
+  const ppl = Object.entries(prof).filter(([, v]) => v.seen).sort((a, b) => b[1].seen - a[1].seen);
+  app.innerHTML = `<div class="view">${pageHead('History', 'Stored only on this device')}
+    <section class="section" style="max-width:none;margin-top:4px"><div class="section-h"><h2>Watched videos</h2>${watched.length ? '<button class="link-btn" id="clrW">Clear</button>' : ''}</div>
+      ${watched.length ? `<div class="lib-grid" style="padding:0" id="wGrid">${watched.slice(0, 60).map(w => feedCard(normV(w, w.user))).join('')}</div>` : '<div class="recents"><div class="empty-note">Videos you watch in GhostView show up here.</div></div>'}</section>
+    <section class="section" style="max-width:none"><div class="section-h"><h2>Profiles</h2>${ppl.length ? '<button class="link-btn" id="clrP">Clear</button>' : ''}</div>
+      ${ppl.length ? `<div class="people">${ppl.slice(0, 30).map(([u, v]) => personTile(u, ago(v.seen))).join('')}</div>` : '<div class="recents"><div class="empty-note">No profiles viewed yet.</div></div>'}</section>
+    <section class="section" style="max-width:none"><div class="section-h"><h2>Searches</h2>${recents.length ? '<button class="link-btn" id="clrS">Clear</button>' : ''}</div>
+      <div class="recents">${recents.length ? recents.map(x => { const d = describe(x), k = P[x.platform].key; return `<div class="r-row"><a class="main" href="${esc(x.key)}"><span class="badge ${k}">${I[k]}</span><span style="min-width:0"><div class="t">${esc(d.title)}</div><div class="s">${esc(d.sub)} · ${ago(x.t)}</div></span></a></div>`; }).join('') : '<div class="empty-note">No searches yet.</div>'}</div></section></div>`;
+  hookGrid(app.querySelector('.view'), watched.map(w => normV(w, w.user)), null);
+  const w = $('#clrW'); if (w) w.onclick = () => { watched = []; store.set('watched', []); viewHistory(); toast('Watch history cleared'); };
+  const p = $('#clrP'); if (p) p.onclick = () => { prof = {}; store.set('prof', {}); viewHistory(); toast('Profile history cleared'); };
+  const s = $('#clrS'); if (s) s.onclick = () => { recents = []; store.set('recents', []); viewHistory(); toast('Search history cleared'); };
+}
+
+/* ================= top bar ================= */
+let barBound = false;
+function setBar(compact) {
+  $('#bar').classList.toggle('compact', compact);
+  if (compact && !barBound) { bindSearch($('#barForm'), $('#barInput')); barBound = true; }
+  if (compact) $('#barInput').value = '';
+}
+addEventListener('scroll', () => $('#bar').classList.toggle('scrolled', scrollY > 4), { passive: true });
+
+/* ================= router ================= */
+function render() {
+  const h = location.hash.replace(/^#\/?/, '');
+  const seg = h.split('/').filter(Boolean).map(s => { try { return decodeURIComponent(s); } catch { return s; } });
+  // Video routes open the vertical viewer ON TOP of the current page, so going back keeps your place.
+  if (seg[0] === 'tiktok' && seg[1] === 'v' && RX.ttId.test(seg[2] || '')) {
+    if (vv) { const i = vv.items.findIndex(x => x.id === seg[2]); if (i >= 0) { if (i !== vv.idx) vvLoad(i, i > vv.idx ? 1 : -1); return; } closeVV(); }
+    return openVideo(seg[2], seg[3] && RX.ttUser.test(seg[3]) ? seg[3].toLowerCase() : null);
+  }
+  if (vv) { const under = vv.under, force = vv.forceRerender; closeVV(); if (under === location.hash && !force && app.innerHTML.trim()) { pageHash = location.hash; return; } if (force) curProfile = null; }
+  pageHash = location.hash;
+  updateNav(!seg.length ? 'home' : ['search', 'following', 'explore', 'history'].includes(seg[0]) ? seg[0] : '');
+  player = null;
+  const sameProfile = curProfile && h.indexOf('tiktok/u/' + curProfile) === 0 && $('#tabBody');
+  if (!sameProfile) { curProfile = null; scrollTo({ top: 0 }); }
+  if (!seg.length) return viewHome();
+  const [p, kind, a, b] = seg;
+  if (p === 'search') return viewSearch();
+  if (p === 'following') return viewFollowing();
+  if (p === 'explore') return viewExplore();
+  if (p === 'history') return viewHistory();
+  if (p === 'instagram') {
+    if (kind === 'u' && a && RX.igUser.test(a)) { setPlatform('instagram', true); return viewProfile({ type: 'profile', platform: 'instagram', user: a.toLowerCase() }); }
+    if (['p', 'reel', 'tv'].includes(kind) && a && RX.igCode.test(a)) return viewContent({ type: 'post', platform: 'instagram', kind, code: a, user: null });
+  }
+  if (p === 'tiktok') {
+    if (kind === 'u' && a && RX.ttUser.test(a)) {
+      const u = a.toLowerCase();
+      if (curProfile === u && $('#tabBody')) { // same profile: swap tab without reloading TikTok's card
+        const t = TT_TABS.some(x => x[0] === b) ? b : 'videos';
+        document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x.getAttribute('href').endsWith('/' + t))));
+        if (API && !forceEmbed.has(u)) return getLive(u).then(d => d.status === 200 ? renderLiveTab(u, t, d) : renderTab(u, t));
+        return renderTab(u, t);
+      }
+      setPlatform('tiktok', true); profSet(u, {});
+      return apiAvailable().then(ok => {
+        if (ok && !forceEmbed.has(u)) return viewLiveProfile(u, b);
+        curProfile = u; return viewTikTokProfile(u, b);
+      });
+    }
+    if (kind === 'v' && a && RX.ttId.test(a)) return openVideo(a, b && RX.ttUser.test(b) ? b.toLowerCase() : null);
+  }
+  notFound();
+}
+addEventListener('hashchange', render);
+render();
+})();
+</script>
+</body>
+</html>
