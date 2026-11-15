@@ -2,11 +2,6 @@
 
 Browse publicly available TikTok and Instagram profiles privately.
 
-## Files
-- `index.html`: the whole app (UI)
-- `server.js`: the backend that loads public TikTok profile data (no dependencies)
-- `package.json`: lets hosting services start the server
-
 ## Run it on your computer
 Install Node.js 18 or newer, then run this in the folder:
 
@@ -16,13 +11,22 @@ node server.js
 
 Open http://localhost:3000
 
-## Put it online (free, from your phone)
-1. Make a new GitHub repository and upload these three files.
-2. On render.com, click New → Web Service and pick the repository.
-3. Use start command `node server.js` and the free plan. Render sets PORT automatically.
-4. Open the address Render gives you.
+## Put it online (free, no card): Vercel
+1. Go to **vercel.com** and choose **Continue with GitHub**.
+2. Tap **Add New… → Project**, then **Import** next to this repository.
+3. Leave every setting as it is and tap **Deploy**.
+4. Open the address Vercel gives you, for example `claude-xxxx.vercel.app`. On iPhone, tap Share → **Add to Home Screen**.
 
-Railway and Fly.io work the same way. Static-only hosts such as Netlify Drop or GitHub Pages can't run `server.js`. On those, GhostView automatically uses TikTok's official embeds instead.
+Vercel uses `index.html` and the functions in `/api`. Every push to this repo updates the site automatically.
+
+### Other hosts
+Render, Railway and Fly.io run `server.js` instead. Use start command `node server.js`. Static-only hosts like Netlify Drop or GitHub Pages can't run the API, so GhostView falls back to TikTok's official embeds there.
+
+## Files
+- `index.html`: the whole app
+- `api/`: Vercel functions (`/api/health`, `/api/tiktok/profile/:user`, `/api/img`)
+- `lib/core.js`: shared TikTok data logic
+- `server.js`: the same API as a standalone Node server
 
 ## How TikTok data is fetched
 - Reads only the public profile page and TikTok's public embed page, the same pages anyone who isn't signed in sees.

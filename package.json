@@ -1,6 +1,6 @@
 {
   "name": "ghostview",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "description": "Apple-style viewer for public TikTok and Instagram profiles",
   "main": "server.js",
@@ -8,6 +8,6 @@
     "start": "node server.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": "22.x"
   }
 }
